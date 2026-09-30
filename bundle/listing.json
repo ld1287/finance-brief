@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "subtitle": "一屏看盘：要闻、A股、美股、加密、外汇",
+  "description": "财经简报把公开免密接口的财经要闻与行情聚合到一个列表里：分「要闻 / A股 / 美股 / 加密 / 外汇」五个标签，点任意一条进入详情，可收藏并在重启后保留。无网络时显示内置示例数据。所有数据仅用于演示，不构成投资建议。",
+  "category": "finance",
+  "keywords": ["finance", "news", "stocks", "crypto", "forex", "行情", "财经"],
+  "screenshots": [
+      "screenshots/01-news.png",
+      "screenshots/02-astocks.png",
+      "screenshots/03-us.png",
+      "screenshots/04-crypto.png",
+      "screenshots/05-fx.png",
+      "screenshots/06-favs.png"
+    ],
+  "icon": "assets/icon.svg",
+  "platforms": ["linux"],
+  "publisher": {
+    "name": "Replace with your publisher name",
+    "support": "https://example.com/support",
+    "privacy_policy_url": "https://example.com/privacy"
+  },
+  "release_notes": "首个演示版本：五个行情/要闻标签、详情、收藏与离线示例数据。",
+  "age_rating": "all",
+  "license": "Apache-2.0"
+}

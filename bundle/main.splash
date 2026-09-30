@@ -1,0 +1,1059 @@
+// 财经简报 (Finance Brief) — a contained OctoSense script app.
+//
+// Tabs: 要闻 / A股 / 美股 / 加密 / 外汇 / 收藏.
+// Live data over https from key-free public endpoints:
+//   - 要闻   feed.mix.sina.com.cn  (Sina finance rolling news, JSON)
+//   - A股    qt.gtimg.cn           (Tencent quotes, plain text; GBK names ignored)
+//   - 美股   qt.gtimg.cn
+//   - 加密   api.hyperliquid.xyz  (Hyperliquid perps, POST JSON)
+//   - 外汇   api.frankfurter.dev  (reference FX rates, JSON)
+// A small sample is built in the script, shown until the first live fetch.
+//
+// Deliberately avoids writing objects with a computed key (`o[k] = v`): reads
+// and writes of dynamic keys are not interchangeable on Splash objects, so the
+// per-tab lists are plain variables behind rows_for()/set_rows().
+//
+// v0.2.0 — top-level view router (`view = "launcher"|"main"|"favs"|"settings"|"about"`).
+// The root `SolidView` is now `flow: Overlay` and holds five named panes;
+// only the active one is visible. `tab` still drives which market the main
+// pane shows, so the existing tabbar / refresh / detail logic is untouched.
+
+let tabs = [
+    {id: "news" label: "要闻"}
+    {id: "a" label: "A股"}
+    {id: "us" label: "美股"}
+    {id: "crypto" label: "加密"}
+    {id: "fx" label: "外汇"}
+    {id: "fav" label: "收藏"}
+]
+
+let news_rows = []
+let a_rows = []
+let us_rows = []
+let crypto_rows = []
+let fx_rows = []
+
+let news_err = false
+let a_err = false
+let us_err = false
+let crypto_err = false
+let fx_err = false
+
+let favs = []
+let rows = []
+let tab = "news"
+let detail = nil
+let busy = false
+let updated = 0
+let cached = false
+
+// v0.2.0: top-level view router. The launcher is the first thing on boot;
+// "main" shows the existing tabbed UI; favs/settings/about each get their
+// own pane inside the root Overlay.
+let view = "launcher"
+let settings = {theme: "dark" hosts: {sina: 1 tencent: 1 hyperliquid: 1 frankfurter: 1}}
+
+// `tkey` selects the statement, `tick` is what we show.
+let a_syms = [
+    {tkey: "sh000001" name: "上证指数" tick: "000001" dec: 2}
+    {tkey: "sz399001" name: "深证成指" tick: "399001" dec: 2}
+    {tkey: "sh000300" name: "沪深300" tick: "000300" dec: 2}
+    {tkey: "sh600519" name: "贵州茅台" tick: "600519" dec: 2}
+    {tkey: "sz000858" name: "五粮液" tick: "000858" dec: 2}
+]
+let us_syms = [
+    {tkey: "usAAPL" name: "苹果" tick: "AAPL" dec: 2}
+    {tkey: "usMSFT" name: "微软" tick: "MSFT" dec: 2}
+    {tkey: "usNVDA" name: "英伟达" tick: "NVDA" dec: 2}
+    {tkey: "usTSLA" name: "特斯拉" tick: "TSLA" dec: 2}
+    {tkey: "usAMZN" name: "亚马逊" tick: "AMZN" dec: 2}
+]
+
+let ink = #xf2f4f8
+let secondary = #x8e93a3
+let up = #xe64340
+let down = #x2ecc71
+let flat = #x8e93a3
+
+// ---------------------------------------------------------------- helpers
+
+fn padn(n, dec){
+    let s = "" + n
+    while s.len() < dec { s = "0" + s }
+    s
+}
+
+fn starts(txt, ch){
+    txt.search(ch) == 0
+}
+
+// Split before scaling: `round(a * m)` at m = 10^4 loses the low bits of a
+// five-digit price and produced values like "83745.0-16" for BTC.
+fn fixed(v, dec){
+    let neg = v < 0
+    let a = abs(v)
+    let m = pow(10, dec)
+    let whole = floor(a)
+    let frac = round((a - whole) * m)
+    if frac >= m { whole = whole + 1 frac = 0 }
+    let s = "" + whole + "." + padn(frac, dec)
+    if neg { "-" + s } else { s }
+}
+
+fn pct_str(v){
+    let s = fixed(abs(v), 2)
+    if v > 0.0001 { "+" + s + "%" }
+    elif v < -0.0001 { "-" + s + "%" }
+    else { s + "%" }
+}
+
+fn pct_color(v){
+    if v > 0.0001 { up }
+    elif v < -0.0001 { down }
+    else { flat }
+}
+
+fn hm(ts){
+    if ts == 0 { return "" }
+    let t = local_time(ts)
+    padn(t.month, 2) + "-" + padn(t.day, 2) + " " + padn(t.hour, 2) + ":" + padn(t.minute, 2)
+}
+
+fn fetch_get(url){
+    let p = promise()
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.2"}}) do net.HttpEvents{
+        on_response: |res| p.resolve(res)
+        on_error: |_err| p.resolve(nil)
+    }
+    p
+}
+
+fn fetch_post(url, payload){
+    let p = promise()
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.POST headers: {"Content-Type": "application/json" "User-Agent": "OctoSense-FinanceBrief/0.2"} body: payload}) do net.HttpEvents{
+        on_response: |res| p.resolve(res)
+        on_error: |_err| p.resolve(nil)
+    }
+    p
+}
+
+// Quote feeds are plain text with GBK names; display names are ours and only
+// the ASCII numbers are read. Sina's hq.sinajs.cn was tried first and aborts
+// with a TLS `unexpected eof` in this client, so Tencent's qt.gtimg.cn is used.
+fn fetch_q(url){
+    let p = promise()
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "Mozilla/5.0"}}) do net.HttpEvents{
+        on_response: |res| p.resolve(res)
+        on_error: |_err| p.resolve(nil)
+    }
+    p
+}
+
+fn good(res){
+    res != nil && res.status_code < 400 && res.body != nil
+}
+
+// Read an object field without touching a key that is not there. In Splash,
+// reading a missing property is an error, not nil, so `if o.k != nil` cannot
+// guard it; enumerating the object's own keys can. Feed items are not uniform
+// (one Sina story in 60 has no media_name), so every remote field read uses this.
+fn get(o, key, fallback){
+    if o == nil { return fallback }
+    for k v in o { if k == key { return v } }
+    fallback
+}
+
+fn num(v){
+    let f = ("" + v).to_f64()
+    if f == f { f } else { 0 }
+}
+
+// Rows that came from the built-in sample must never look like live prices.
+fn sub_of(r){
+    if starts(r.id, "sample:") { return "示例数据 · 非实时" }
+    r.sub
+}
+
+// ---------------------------------------------------------------- settings I/O (v0.2.0)
+
+fn load_settings(){
+    if fs.exists("settings.json") {
+        let v = fs.read("settings.json").parse_json()
+        if v != nil {
+            let t = get(v, "theme", "")
+            if t == "dark" || t == "light" || t == "auto" { settings.theme = t }
+            let h = get(v, "hosts", nil)
+            if h != nil {
+                if get(h, "sina", 0) == 1 { settings.hosts.sina = 1 } else { settings.hosts.sina = 0 }
+                if get(h, "tencent", 0) == 1 { settings.hosts.tencent = 1 } else { settings.hosts.tencent = 0 }
+                if get(h, "hyperliquid", 0) == 1 { settings.hosts.hyperliquid = 1 } else { settings.hosts.hyperliquid = 0 }
+                if get(h, "frankfurter", 0) == 1 { settings.hosts.frankfurter = 1 } else { settings.hosts.frankfurter = 0 }
+            }
+        }
+    }
+}
+
+fn save_settings(){
+    fs.write("settings.json", settings.to_json())
+}
+
+fn host_val(name){
+    if name == "sina" { return settings.hosts.sina }
+    if name == "tencent" { return settings.hosts.tencent }
+    if name == "hyperliquid" { return settings.hosts.hyperliquid }
+    if name == "frankfurter" { return settings.hosts.frankfurter }
+    0
+}
+
+fn set_host(name, val){
+    if name == "sina" { settings.hosts.sina = val return }
+    if name == "tencent" { settings.hosts.tencent = val return }
+    if name == "hyperliquid" { settings.hosts.hyperliquid = val return }
+    if name == "frankfurter" { settings.hosts.frankfurter = val return }
+}
+
+fn toggle_setting(name){
+    if host_val(name) == 1 { set_host(name, 0) } else { set_host(name, 1) }
+    save_settings()
+    if ui.settings_pane != nil { ui.settings_pane.render() }
+}
+
+fn set_theme(name){
+    if name == "dark" || name == "light" || name == "auto" { settings.theme = name }
+    save_settings()
+    if ui.settings_pane != nil { ui.settings_pane.render() }
+}
+
+// ---------------------------------------------------------------- view router (v0.2.0)
+
+fn refresh_pane(){
+    if ui == nil { return }
+    let vis_launcher = view == "launcher"
+    let vis_main = view == "main"
+    let vis_favs = view == "favs"
+    let vis_settings = view == "settings"
+    let vis_about = view == "about"
+    if ui.launcher_pane != nil { ui.launcher_pane.set_visible(vis_launcher) }
+    if ui.main_pane != nil { ui.main_pane.set_visible(vis_main) }
+    if ui.favs_pane != nil { ui.favs_pane.set_visible(vis_favs) }
+    if ui.settings_pane != nil { ui.settings_pane.set_visible(vis_settings) }
+    if ui.about_pane != nil { ui.about_pane.set_visible(vis_about) }
+    if vis_launcher && ui.launcher_pane != nil { ui.launcher_pane.render() }
+    if vis_main && ui.main_pane != nil { ui.main_pane.render() }
+    if vis_favs && ui.favs_pane != nil { ui.favs_pane.render() }
+    if vis_settings && ui.settings_pane != nil { ui.settings_pane.render() }
+    if vis_about && ui.about_pane != nil { ui.about_pane.render() }
+}
+
+fn pick_view(v){
+    view = v
+    if v != "main" { detail = nil }
+    refresh_pane()
+}
+
+// Launcher tile: open main pane on a given tab. "行情看盘" defaults to A股.
+fn open_tab(tid){
+    tab = tid
+    detail = nil
+    view = "main"
+    rebuild()
+    refresh_pane()
+    if ui.tabbar != nil { ui.tabbar.render() }
+    if ui.list != nil { ui.list.render() }
+    sync_status()
+}
+
+// ---------------------------------------------------------------- tabs
+
+fn rows_for(tid){
+    if tid == "a" { return a_rows }
+    if tid == "us" { return us_rows }
+    if tid == "crypto" { return crypto_rows }
+    if tid == "fx" { return fx_rows }
+    if tid == "fav" { return favs }
+    news_rows
+}
+
+fn set_rows(tid, v){
+    if tid == "a" { a_rows = v return }
+    if tid == "us" { us_rows = v return }
+    if tid == "crypto" { crypto_rows = v return }
+    if tid == "fx" { fx_rows = v return }
+    if tid == "fav" { favs = v return }
+    news_rows = v
+}
+
+fn err_for(tid){
+    if tid == "a" { return a_err }
+    if tid == "us" { return us_err }
+    if tid == "crypto" { return crypto_err }
+    if tid == "fx" { return fx_err }
+    news_err
+}
+
+fn set_err(tid, v){
+    if tid == "a" { a_err = v return }
+    if tid == "us" { us_err = v return }
+    if tid == "crypto" { crypto_err = v return }
+    if tid == "fx" { fx_err = v return }
+    news_err = v
+}
+
+// ---------------------------------------------------------------- sample
+
+fn sample_for(tid){
+    if tid == "news" {
+        return [
+            {id: "sample:news:1" kind: "news" title: "示例：央行公开市场净投放，资金面维持宽松" sub: "示例" metric: "" pct: 0 body: "离线示例数据。点右上角「刷新」会从新浪财经拉取真实要闻。" url: "" ts: 0}
+            {id: "sample:news:2" kind: "news" title: "示例：券商晨会聚焦 AI 算力与新能源出海" sub: "示例" metric: "" pct: 0 body: "离线示例数据。" url: "" ts: 0}
+            {id: "sample:news:3" kind: "news" title: "示例：大宗商品夜盘分化，原油走高、铜价回落" sub: "示例" metric: "" pct: 0 body: "离线示例数据。" url: "" ts: 0}
+        ]
+    }
+    if tid == "a" {
+        return [
+            {id: "sample:a:000001" kind: "quote" title: "上证指数" sub: "000001" metric: "3080.15" pct: 0.46 body: "" url: "" ts: 0}
+            {id: "sample:a:399001" kind: "quote" title: "深证成指" sub: "399001" metric: "9540.20" pct: 0.71 body: "" url: "" ts: 0}
+            {id: "sample:a:000300" kind: "quote" title: "沪深300" sub: "000300" metric: "3602.40" pct: 0.33 body: "" url: "" ts: 0}
+            {id: "sample:a:600519" kind: "quote" title: "贵州茅台" sub: "600519" metric: "1685.00" pct: -0.42 body: "" url: "" ts: 0}
+            {id: "sample:a:000858" kind: "quote" title: "五粮液" sub: "000858" metric: "128.66" pct: 0.18 body: "" url: "" ts: 0}
+        ]
+    }
+    if tid == "us" {
+        return [
+            {id: "sample:us:AAPL" kind: "quote" title: "苹果" sub: "AAPL" metric: "338.400" pct: -0.78 body: "" url: "" ts: 0}
+            {id: "sample:us:MSFT" kind: "quote" title: "微软" sub: "MSFT" metric: "412.110" pct: 0.54 body: "" url: "" ts: 0}
+            {id: "sample:us:NVDA" kind: "quote" title: "英伟达" sub: "NVDA" metric: "228.860" pct: 1.68 body: "" url: "" ts: 0}
+            {id: "sample:us:TSLA" kind: "quote" title: "特斯拉" sub: "TSLA" metric: "357.450" pct: -3.94 body: "" url: "" ts: 0}
+            {id: "sample:us:AMZN" kind: "quote" title: "亚马逊" sub: "AMZN" metric: "231.070" pct: 0.22 body: "" url: "" ts: 0}
+        ]
+    }
+    if tid == "crypto" {
+        return [
+            {id: "sample:crypto:BTC" kind: "quote" title: "BTC" sub: "HL 永续" metric: "83884.0000" pct: 1.20 body: "" url: "" ts: 0}
+            {id: "sample:crypto:ETH" kind: "quote" title: "ETH" sub: "HL 永续" metric: "2713.3000" pct: 2.64 body: "" url: "" ts: 0}
+            {id: "sample:crypto:SOL" kind: "quote" title: "SOL" sub: "HL 永续" metric: "119.1959" pct: 0.90 body: "" url: "" ts: 0}
+            {id: "sample:crypto:AVAX" kind: "quote" title: "AVAX" sub: "HL 永续" metric: "11.3190" pct: 8.85 body: "" url: "" ts: 0}
+        ]
+    }
+    if tid == "fx" {
+        return [
+            {id: "sample:fx:CNY" kind: "quote" title: "USD/CNY" sub: "参考汇率" metric: "6.7105" pct: 0 body: "" url: "" ts: 0}
+            {id: "sample:fx:EUR" kind: "quote" title: "USD/EUR" sub: "参考汇率" metric: "0.8789" pct: 0 body: "" url: "" ts: 0}
+            {id: "sample:fx:JPY" kind: "quote" title: "USD/JPY" sub: "参考汇率" metric: "156.8800" pct: 0 body: "" url: "" ts: 0}
+            {id: "sample:fx:GBP" kind: "quote" title: "USD/GBP" sub: "参考汇率" metric: "0.7832" pct: 0 body: "" url: "" ts: 0}
+            {id: "sample:fx:HKD" kind: "quote" title: "USD/HKD" sub: "参考汇率" metric: "7.8120" pct: 0 body: "" url: "" ts: 0}
+        ]
+    }
+    []
+}
+
+fn load_sample(){
+    for t in tabs {
+        if t.id == "fav" { continue }
+        if rows_for(t.id).len() == 0 { set_rows(t.id, sample_for(t.id)) }
+    }
+}
+
+// ---------------------------------------------------------------- loaders
+
+fn row_news(it, idx){
+    let title = "" + get(it, "title", "")
+    let media = "" + get(it, "media_name", "")
+    let intro = "" + get(it, "intro", "")
+    let url = "" + get(it, "url", "")
+    let oid = "" + get(it, "oid", "")
+    let ts = 0
+    let raw = get(it, "ctime", "")
+    if raw != "" { ts = num(raw) }
+    let id = "news:" + oid
+    if oid == "" { id = "news:#" + ("" + idx) }
+    {id: id kind: "news" title: title sub: media metric: "" pct: 0 body: intro url: url ts: ts}
+}
+
+fn load_news(){
+    if host_val("sina") == 0 {
+        if news_rows.len() == 0 { news_rows = sample_for("news") }
+        news_err = false
+        return
+    }
+    let res = fetch_get("https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num=20&page=1").await()
+    if !good(res) {
+        if news_rows.len() == 0 { news_rows = sample_for("news") }
+        news_err = true
+        return
+    }
+    let txt = res.body.to_string()
+    if !starts(txt.trim(), "{") {
+        if news_rows.len() == 0 { news_rows = sample_for("news") }
+        news_err = true
+        return
+    }
+    let d = txt.parse_json()
+    if d == nil {
+        if news_rows.len() == 0 { news_rows = sample_for("news") }
+        news_err = true
+        return
+    }
+    let items = get(get(d, "result", nil), "data", nil)
+    if items == nil {
+        if news_rows.len() == 0 { news_rows = sample_for("news") }
+        news_err = true
+        return
+    }
+    let out = []
+    for i it in items { out.push(row_news(it, i)) }
+    if out.len() == 0 {
+        if news_rows.len() == 0 { news_rows = sample_for("news") }
+        news_err = true
+        return
+    }
+    news_rows = out
+    news_err = false
+    fs.write("cache_news.json", out.to_json())
+}
+
+// Tencent quote feed: `v_<code>="…~name~code~current~prev~open~…~time~chg~pct~high~low~…";`
+// per symbol, separated by ";". Index 3 is the current price, 32 the change %.
+fn load_tencent(tid, syms, listed){
+    if host_val("tencent") == 0 {
+        if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+        set_err(tid, false)
+        return
+    }
+    let res = fetch_q("https://qt.gtimg.cn/q=" + listed).await()
+    if !good(res) {
+        if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+        set_err(tid, true)
+        return
+    }
+    let stmts = res.body.to_string().split(";")
+    let out = []
+    for sy in syms {
+        let idx = -1
+        for i in stmts.len() {
+            if idx < 0 { if stmts[i].search(sy.tkey) >= 0 { idx = i } }
+        }
+        if idx < 0 { continue }
+        let f = stmts[idx].split("~")
+        if f.len() < 33 { continue }
+        let price = num(f[3])
+        let pct = num(f[32])
+        if price > 0 {
+            out.push({id: tid + ":" + sy.tick kind: "quote" title: sy.name sub: sy.tick metric: fixed(price, sy.dec) pct: pct body: "" url: "" ts: 0})
+        }
+    }
+    if out.len() == 0 {
+        if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+        set_err(tid, true)
+        return
+    }
+    set_rows(tid, out)
+    set_err(tid, false)
+    fs.write("cache_" + tid + ".json", out.to_json())
+}
+
+// Hyperliquid: [0].universe[i].name pairs with [1][i].markPx / prevDayPx.
+fn load_crypto(){
+    if host_val("hyperliquid") == 0 {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = false
+        return
+    }
+    let res = fetch_post("https://api.hyperliquid.xyz/info", "{\"type\":\"metaAndAssetCtxs\"}").await()
+    if !good(res) {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    let txt = res.body.to_string()
+    if !starts(txt.trim(), "[") {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    let d = txt.parse_json()
+    if d == nil {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    if d.len() < 2 {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    let uni = get(d[0], "universe", nil)
+    let ctx = d[1]
+    if uni == nil {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    if ctx == nil {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    if ctx.len() == 0 {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    let n = 12
+    if uni.len() < n { n = uni.len() }
+    if ctx.len() < n { n = ctx.len() }
+    let out = []
+    for i in n {
+        let name = "" + get(uni[i], "name", "")
+        if name == "" { continue }
+        let mark = num(get(ctx[i], "markPx", 0))
+        let prev = num(get(ctx[i], "prevDayPx", 0))
+        let pct = 0
+        if prev > 0 { pct = (mark - prev) / prev * 100 }
+        out.push({id: "crypto:" + name kind: "quote" title: name sub: "HL 永续" metric: fixed(mark, 4) pct: pct body: "" url: "" ts: 0})
+    }
+    if out.len() == 0 {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = true
+        return
+    }
+    crypto_rows = out
+    crypto_err = false
+    fs.write("cache_crypto.json", out.to_json())
+}
+
+fn load_fx(){
+    if host_val("frankfurter") == 0 {
+        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+        fx_err = false
+        return
+    }
+    let res = fetch_get("https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY,EUR,JPY,GBP,HKD").await()
+    if !good(res) {
+        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+        fx_err = true
+        return
+    }
+    let txt = res.body.to_string()
+    if !starts(txt.trim(), "{") {
+        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+        fx_err = true
+        return
+    }
+    let d = txt.parse_json()
+    if d == nil {
+        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+        fx_err = true
+        return
+    }
+    let rates = get(d, "rates", nil)
+    if rates == nil {
+        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+        fx_err = true
+        return
+    }
+    let out = []
+    for k v in rates {
+        out.push({id: "fx:" + k kind: "quote" title: "USD/" + k sub: "参考汇率" metric: fixed(num(v), 4) pct: 0 body: "" url: "" ts: 0})
+    }
+    if out.len() == 0 {
+        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+        fx_err = true
+        return
+    }
+    fx_rows = out
+    fx_err = false
+    fs.write("cache_fx.json", out.to_json())
+}
+
+// ---------------------------------------------------------------- state
+
+fn load_state(){
+    if fs.exists("favs.json") {
+        let v = fs.read("favs.json").parse_json()
+        if v != nil { favs = v }
+    }
+    for t in tabs {
+        if t.id == "fav" { continue }
+        let path = "cache_" + t.id + ".json"
+        if fs.exists(path) {
+            let v = fs.read(path).parse_json()
+            if v != nil { if v.len() > 0 { set_rows(t.id, v) cached = true } }
+        }
+    }
+}
+
+fn rebuild(){
+    rows = rows_for(tab)
+}
+
+fn status_line(){
+    if busy { return "刷新中…" }
+    if tab == "fav" { return "已收藏 " + ("" + favs.len()) + " 条" }
+    if err_for(tab) { return "来源暂时不可用，显示缓存 / 示例数据" }
+    if cached { return "显示上次缓存，点「刷新」更新" }
+    if updated > 0 { return "更新于 " + hm(updated) }
+    "点右上角「刷新」获取最新数据"
+}
+
+fn sync_status(){ ui.status.set_text(status_line()) }
+
+fn refresh(){
+    if busy { return }
+    busy = true
+    detail = nil
+    cached = false
+    sync_status()
+    if ui.list != nil { ui.list.render() }
+    load_news()
+    load_tencent("a", a_syms, "sh000001,sz399001,sh000300,sh600519,sz000858")
+    load_tencent("us", us_syms, "usAAPL,usMSFT,usNVDA,usTSLA,usAMZN")
+    load_crypto()
+    load_fx()
+    busy = false
+    updated = time_now()
+    rebuild()
+    sync_status()
+    if ui.list != nil { ui.list.render() }
+}
+
+fn pick(id){
+    tab = id
+    detail = nil
+    // Tab "fav" is the existing tabbar path into the favs view; everything
+    // else stays on the main pane.
+    if id == "fav" { view = "favs" } else { view = "main" }
+    rebuild()
+    refresh_pane()
+    if ui.tabbar != nil { ui.tabbar.render() }
+    if ui.list != nil { ui.list.render() }
+    sync_status()
+}
+
+fn open_detail(i){
+    if i < 0 { return }
+    if i >= rows.len() { return }
+    detail = rows[i]
+    if ui.list != nil { ui.list.render() }
+}
+
+fn close_detail(){
+    detail = nil
+    if ui.list != nil { ui.list.render() }
+}
+
+fn is_fav(id){
+    for f in favs { if f.id == id { return true } }
+    false
+}
+
+fn toggle_fav(r){
+    if is_fav(r.id) { favs.retain(|f| f.id != r.id) } else { favs.push(r) }
+    fs.write("favs.json", favs.to_json())
+    rebuild()
+    if ui.list != nil { ui.list.render() }
+    if ui.favs_pane != nil { ui.favs_pane.render() }
+    sync_status()
+}
+
+fn boot(){
+    load_state()
+    load_settings()
+    load_sample()
+    rebuild()
+    refresh_pane()
+    refresh()
+}
+start_timeout(0.05, || boot())
+start_interval(600, || refresh())
+
+// ---------------------------------------------------------------- styles
+
+let TabButton = ButtonFlat{height: 32 padding: Inset{left: 12 right: 12}
+    draw_bg +: {border_radius: 16.0 color: #x00000000 color_hover: #xffffff14 color_down: #xffffff24 border_size: 0.0}
+    draw_text +: {color: #xaab2c5 color_hover: #xffffff color_down: #xffffff text_style +: {font_size: 13}}
+}
+let TabButtonActive = TabButton{
+    draw_bg +: {color: #x1d4ed8 color_hover: #x1d4ed8 color_down: #x1e40af}
+    draw_text +: {color: #xffffff color_hover: #xffffff color_down: #xffffff}
+}
+let BarButton = ButtonFlat{height: 36 padding: Inset{left: 14 right: 14}
+    draw_bg +: {border_radius: 18.0 color: #x1d4ed8 color_hover: #x2563eb color_down: #x1e40af border_size: 0.0}
+    draw_text +: {color: #xffffff color_hover: #xffffff color_down: #xffffff text_style +: {font_size: 14}}
+}
+let GhostButton = ButtonFlat{height: 36 padding: Inset{left: 14 right: 14}
+    draw_bg +: {border_radius: 18.0 color: #x00000000 color_hover: #xffffff14 color_down: #xffffff24 border_size: 0.0}
+    draw_text +: {color: #xc9d1e2 color_hover: #xffffff color_down: #xffffff text_style +: {font_size: 14}}
+}
+
+// v0.2.0: chip / switch / launcher-tile styles.
+let Chip = ButtonFlat{height: 36 padding: Inset{left: 14 right: 14}
+    draw_bg +: {border_radius: 18.0 color: #x1f2531 color_hover: #x262d3b color_down: #x2e3645 border_size: 0.0}
+    draw_text +: {color: #xc9d1e2 color_hover: #xffffff color_down: #xffffff text_style +: {font_size: 13}}
+}
+let ChipOn = Chip{
+    draw_bg +: {color: #x1d4ed8 color_hover: #x1d4ed8 color_down: #x1e40af}
+    draw_text +: {color: #xffffff color_hover: #xffffff color_down: #xffffff}
+}
+let Switch = ButtonFlat{height: 40 width: 140 padding: Inset{left: 12 right: 12}
+    draw_bg +: {border_radius: 20.0 color: #x2a3142 color_hover: #x323a4d color_down: #x3a4360 border_size: 0.0}
+    draw_text +: {color: #xc9d1e2 color_hover: #xffffff color_down: #xffffff text_style +: {font_size: 13}}
+}
+let SwitchOn = Switch{
+    draw_bg +: {color: #x15803d color_hover: #x15803d color_down: #x166534}
+    draw_text +: {color: #xffffff color_hover: #xffffff color_down: #xffffff}
+}
+
+// ---------------------------------------------------------------- view renderers (v0.2.0)
+
+// 6 launcher tiles in 2 rows × 3 cols. Tap to enter the matching view.
+fn launcher_grid(){
+    View{width: Fill height: Fit flow: Down spacing: 16 align: Align{x: 0.5}
+        View{width: Fill height: Fit flow: Right spacing: 16 align: Align{x: 0.5}
+            GestureView{width: Fit height: Fit on_tap: |x, y| open_tab("news")
+                RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                    Label{text: "📰" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
+                    Label{width: Fill text: "新闻简报" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
+                    Label{width: Fill text: "Sina 要闻" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                }
+            }
+            GestureView{width: Fit height: Fit on_tap: |x, y| open_tab("a")
+                RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                    Label{text: "📈" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
+                    Label{width: Fill text: "行情看盘" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
+                    Label{width: Fill text: "A · 美 · 加 · 外" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                }
+            }
+            GestureView{width: Fit height: Fit on_tap: |x, y| open_tab("news")
+                RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                    Label{text: "🔬" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
+                    Label{width: Fill text: "研究卡" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
+                    Label{width: Fill text: "本期占位" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                }
+            }
+        }
+        View{width: Fill height: Fit flow: Right spacing: 16 align: Align{x: 0.5}
+            GestureView{width: Fit height: Fit on_tap: |x, y| pick_view("favs")
+                RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                    Label{text: "⭐" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
+                    Label{width: Fill text: "收藏" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
+                    Label{width: Fill text: "已收藏 " + ("" + favs.len()) + " 条" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                }
+            }
+            GestureView{width: Fit height: Fit on_tap: |x, y| pick_view("settings")
+                RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                    Label{text: "⚙" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
+                    Label{width: Fill text: "设置" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
+                    Label{width: Fill text: "主题 / 数据源" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                }
+            }
+            GestureView{width: Fit height: Fit on_tap: |x, y| pick_view("about")
+                RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                    Label{text: "ℹ" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
+                    Label{width: Fill text: "免责声明" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
+                    Label{width: Fill text: "请务必阅读" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                }
+            }
+        }
+    }
+}
+
+fn view_launcher(){
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 18 right: 18 top: 24 bottom: 8}
+            View{width: Fill height: Fit flow: Down spacing: 2
+                Label{text: "财经简报" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 30}}
+                Label{text: "选择功能" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+        }
+        View{width: Fill height: Fill flow: Down spacing: 16 padding: Inset{left: 14 right: 14 top: 18 bottom: 16} align: Align{x: 0.5 y: 0.0}
+            launcher_grid()
+        }
+        Label{width: Fill padding: Inset{left: 18 right: 18 bottom: 10} text: "数据来自公开免密接口 · 仅供演示，不构成投资建议" draw_text.color: secondary draw_text.text_style.font_size: 10}
+    }
+}
+
+// Classify a fav by its id prefix.
+fn fav_kind_of(id){
+    if starts(id, "news:") { return "news" }
+    if starts(id, "a:") { return "a" }
+    if starts(id, "us:") { return "us" }
+    if starts(id, "crypto:") { return "crypto" }
+    if starts(id, "fx:") { return "fx" }
+    ""
+}
+
+fn fav_kind_label(kind){
+    if kind == "news" { return "新闻" }
+    if kind == "a" { return "A股" }
+    if kind == "us" { return "美股" }
+    if kind == "crypto" { return "加密" }
+    if kind == "fx" { return "外汇" }
+    "其他"
+}
+
+// Open a fav's detail in the main pane so it shares the existing detail view.
+fn open_fav_detail(r){
+    detail = r
+    view = "main"
+    refresh_pane()
+    if ui.list != nil { ui.list.render() }
+}
+
+fn view_favs_grouped(){
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 6 right: 12 top: 14 bottom: 6}
+            GhostButton{text: "‹ 返回" on_click: || pick_view("launcher")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
+                Label{text: "收藏" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 26}}
+                Label{text: "按类型分组 · 共 " + ("" + favs.len()) + " 条" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+        }
+        View{width: Fill height: Fill flow: Down spacing: 14 padding: Inset{left: 14 right: 14 top: 8 bottom: 14}
+            if favs.len() == 0 {
+                View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
+                    Label{text: "暂无收藏 · 在行情或新闻页点详情中的「收藏」按钮添加" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                }
+            }
+            // Render one section per kind in fixed order; the empty ones are skipped.
+            for kind_idx in 5 {
+                let kind = if kind_idx == 0 { "news" }
+                           else { if kind_idx == 1 { "a" }
+                                  else { if kind_idx == 2 { "us" }
+                                         else { if kind_idx == 3 { "crypto" } else { "fx" } } } }
+                let group = []
+                for f in favs { if fav_kind_of(f.id) == kind { group.push(f) } }
+                if group.len() > 0 {
+                    View{width: Fill height: Fit flow: Down spacing: 6
+                        Label{width: Fill text: fav_kind_label(kind) + "  (" + ("" + group.len()) + ")"
+                            draw_text.color: secondary draw_text.text_style: theme.font_bold{font_size: 12}}
+                        for r in group {
+                            GestureView{width: Fill height: Fit on_tap: |x, y| open_fav_detail(r)
+                                RoundedView{width: Fill height: Fit flow: Down spacing: 4 padding: Inset{top: 10 bottom: 10 left: 12 right: 12}
+                                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 10.0
+                                    Label{width: Fill text: r.title draw_text.color: ink draw_text.text_style.font_size: 15}
+                                    if r.kind == "quote" {
+                                        View{width: Fill height: Fit flow: Right spacing: 10 align: Align{y: 0.5}
+                                            Label{width: Fill text: sub_of(r) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                                            Label{text: r.metric draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 16}}
+                                            Label{text: pct_str(r.pct) draw_text.color: pct_color(r.pct) draw_text.text_style.font_size: 13}
+                                        }
+                                    }
+                                    if r.kind == "news" {
+                                        Label{width: Fill text: r.sub + "  " + hm(r.ts) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn view_settings(){
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 6 right: 12 top: 14 bottom: 6}
+            GhostButton{text: "‹ 返回" on_click: || pick_view("launcher")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
+                Label{text: "设置" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 26}}
+                Label{text: "主题 / 数据源 / 推送时段" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+        }
+        View{width: Fill height: Fill flow: Down spacing: 18 padding: Inset{left: 18 right: 18 top: 14 bottom: 14}
+            // Theme chips
+            View{width: Fill height: Fit flow: Down spacing: 8
+                Label{width: Fill text: "主题" draw_text.color: secondary draw_text.text_style: theme.font_bold{font_size: 12}}
+                View{width: Fill height: Fit flow: Right spacing: 8
+                    if settings.theme == "dark" { ChipOn{text: "深色" on_click: || set_theme("dark")} }
+                    else { Chip{text: "深色" on_click: || set_theme("dark")} }
+                    if settings.theme == "light" { ChipOn{text: "浅色" on_click: || set_theme("light")} }
+                    else { Chip{text: "浅色" on_click: || set_theme("light")} }
+                    if settings.theme == "auto" { ChipOn{text: "跟随时间" on_click: || set_theme("auto")} }
+                    else { Chip{text: "跟随时间" on_click: || set_theme("auto")} }
+                }
+            }
+            // Data source switches
+            View{width: Fill height: Fit flow: Down spacing: 8
+                Label{width: Fill text: "数据源" draw_text.color: secondary draw_text.text_style: theme.font_bold{font_size: 12}}
+                View{width: Fill height: Fit flow: Down spacing: 6
+                    View{width: Fill height: Fit flow: Right spacing: 12 align: Align{y: 0.5}
+                        View{width: Fill height: Fit flow: Down spacing: 2
+                            Label{width: Fill text: "Sina 财经要闻" draw_text.color: ink draw_text.text_style.font_size: 14}
+                            Label{width: Fill text: "feed.mix.sina.com.cn" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                        }
+                        if host_val("sina") == 1 { SwitchOn{text: "✓ 已启用" on_click: || toggle_setting("sina")} }
+                        else { Switch{text: "○ 已禁用" on_click: || toggle_setting("sina")} }
+                    }
+                    View{width: Fill height: Fit flow: Right spacing: 12 align: Align{y: 0.5}
+                        View{width: Fill height: Fit flow: Down spacing: 2
+                            Label{width: Fill text: "Tencent 行情" draw_text.color: ink draw_text.text_style.font_size: 14}
+                            Label{width: Fill text: "qt.gtimg.cn" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                        }
+                        if host_val("tencent") == 1 { SwitchOn{text: "✓ 已启用" on_click: || toggle_setting("tencent")} }
+                        else { Switch{text: "○ 已禁用" on_click: || toggle_setting("tencent")} }
+                    }
+                    View{width: Fill height: Fit flow: Right spacing: 12 align: Align{y: 0.5}
+                        View{width: Fill height: Fit flow: Down spacing: 2
+                            Label{width: Fill text: "Hyperliquid 加密" draw_text.color: ink draw_text.text_style.font_size: 14}
+                            Label{width: Fill text: "api.hyperliquid.xyz" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                        }
+                        if host_val("hyperliquid") == 1 { SwitchOn{text: "✓ 已启用" on_click: || toggle_setting("hyperliquid")} }
+                        else { Switch{text: "○ 已禁用" on_click: || toggle_setting("hyperliquid")} }
+                    }
+                    View{width: Fill height: Fit flow: Right spacing: 12 align: Align{y: 0.5}
+                        View{width: Fill height: Fit flow: Down spacing: 2
+                            Label{width: Fill text: "Frankfurter 外汇" draw_text.color: ink draw_text.text_style.font_size: 14}
+                            Label{width: Fill text: "api.frankfurter.dev" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                        }
+                        if host_val("frankfurter") == 1 { SwitchOn{text: "✓ 已启用" on_click: || toggle_setting("frankfurter")} }
+                        else { Switch{text: "○ 已禁用" on_click: || toggle_setting("frankfurter")} }
+                    }
+                }
+            }
+            // Push schedule placeholder
+            View{width: Fill height: Fit flow: Down spacing: 6
+                Label{width: Fill text: "推送时段" draw_text.color: secondary draw_text.text_style: theme.font_bold{font_size: 12}}
+                RoundedView{width: Fill height: Fit flow: Down padding: Inset{top: 10 bottom: 10 left: 12 right: 12}
+                    new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 10.0
+                    Label{width: Fill text: "未实现" draw_text.color: #x8e93a3 draw_text.text_style.font_size: 13}
+                    Label{width: Fill text: "后续版本提供" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                }
+            }
+            // Footer link
+            View{width: Fill height: Fit flow: Right align: Align{x: 0.5} padding: Inset{top: 8}
+                ButtonFlat{height: 32 padding: Inset{left: 12 right: 12}
+                    draw_bg +: {border_radius: 16.0 color: #x00000000 color_hover: #xffffff14 color_down: #xffffff24 border_size: 0.0}
+                    draw_text +: {color: #x5b9dff color_hover: #x8ab4ff color_down: #xa0c0ff text_style +: {font_size: 12}}
+                    text: "查看免责声明 ›" on_click: || pick_view("about")}
+            }
+        }
+    }
+}
+
+fn view_about(){
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 6 right: 12 top: 14 bottom: 6}
+            GhostButton{text: "‹ 返回" on_click: || pick_view("launcher")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
+                Label{text: "免责声明" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 26}}
+                Label{text: "请仔细阅读" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+        }
+        View{width: Fill height: Fill flow: Down spacing: 18 padding: Inset{left: 18 right: 18 top: 18 bottom: 18}
+            RoundedView{width: Fill height: Fit flow: Down spacing: 12 padding: Inset{top: 18 bottom: 18 left: 16 right: 16}
+                new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
+                Label{width: Fill text: "重要提示" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 16}}
+                Label{width: Fill text: "本应用所有数据来自公开免费接口，可能延迟、不准确或缺失。所有内容（包括新闻、行情、研究卡）均为算法生成，仅供研究演示，不构成任何投资建议。使用本应用造成的任何损失，应用开发者不承担责任。"
+                    draw_text.color: #xd7dbe6 draw_text.text_style.font_size: 14}
+            }
+            View{width: Fill height: Fill}
+            BarButton{width: Fill height: 44 text: "✓ 我已了解"
+                on_click: || pick_view("launcher")}
+            Label{width: Fill align: Align{x: 0.5} text: "财经简报 v0.2.0 · MVP 演示版本" draw_text.color: secondary draw_text.text_style.font_size: 11}
+        }
+    }
+}
+
+// ---------------------------------------------------------------- program
+
+// Root: flow: Overlay so only one of the five panes is visible at a time.
+SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
+
+    launcher_pane := View{width: Fill height: Fill flow: Down
+        on_render: || view_launcher()
+    }
+
+    main_pane := View{width: Fill height: Fill flow: Down
+
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 18 right: 12 top: 16 bottom: 8}
+            View{width: Fill height: Fit flow: Down spacing: 2
+                Label{text: "财经简报" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 30}}
+                Label{text: "要闻 · A股 · 美股 · 加密 · 外汇" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+            BarButton{text: "刷新" on_click: || refresh()}
+        }
+
+        tabbar := ScrollXView{width: Fill height: 44 flow: Right spacing: 4 padding: Inset{left: 12 right: 12 top: 4 bottom: 8}
+            on_render: || {
+                for t in tabs {
+                    if t.id == tab { TabButtonActive{text: t.label on_click: || pick(t.id)} }
+                    else { TabButton{text: t.label on_click: || pick(t.id)} }
+                }
+            }
+        }
+
+        status := Label{width: Fill padding: Inset{left: 18 right: 18 bottom: 6} text: "" draw_text.color: secondary draw_text.text_style.font_size: 11}
+
+        list := ScrollYView{width: Fill height: Fill flow: Down spacing: 8 padding: Inset{left: 12 right: 12 bottom: 24}
+            on_render: || {
+                if detail != nil {
+                    RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 14 bottom: 14 left: 14 right: 14}
+                        new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 12.0
+                        Label{width: Fill text: detail.title draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 20}}
+                        Label{width: Fill text: sub_of(detail) + "  " + hm(detail.ts) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                        if detail.kind == "quote" {
+                            Label{width: Fill text: detail.metric + "   " + pct_str(detail.pct) draw_text.color: pct_color(detail.pct) draw_text.text_style: theme.font_bold{font_size: 30}}
+                        }
+                        if detail.body != "" {
+                            Label{width: Fill text: detail.body draw_text.color: #xd7dbe6 draw_text.text_style.font_size: 14}
+                        }
+                        if detail.url != "" {
+                            Label{width: Fill text: detail.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                        }
+                        View{width: Fill height: Fit flow: Right spacing: 8 padding: Inset{top: 6}
+                            GhostButton{text: "返回列表" on_click: || close_detail()}
+                            BarButton{text: "收藏 / 取消" on_click: || toggle_fav(detail)}
+                        }
+                    }
+                }
+                if detail == nil {
+                    if rows.len() == 0 {
+                        View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
+                            Label{text: "暂无内容 — 点右上角「刷新」抓取" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                        }
+                    }
+                    for i in rows.len() {
+                        GestureView{width: Fill height: Fit on_tap: |x, y| open_detail(i)
+                            RoundedView{width: Fill height: Fit flow: Down spacing: 4 padding: Inset{top: 10 bottom: 10 left: 12 right: 12}
+                                new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 10.0
+                                Label{width: Fill text: rows[i].title draw_text.color: ink draw_text.text_style.font_size: 15}
+                                if rows[i].kind == "quote" {
+                                    View{width: Fill height: Fit flow: Right spacing: 10 align: Align{y: 0.5}
+                                        Label{width: Fill text: sub_of(rows[i]) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                                        Label{text: rows[i].metric draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 16}}
+                                        Label{text: pct_str(rows[i].pct) draw_text.color: pct_color(rows[i].pct) draw_text.text_style.font_size: 13}
+                                    }
+                                }
+                                if rows[i].kind == "news" {
+                                    Label{width: Fill text: rows[i].sub + "  " + hm(rows[i].ts) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Label{width: Fill padding: Inset{left: 18 right: 18 bottom: 10} text: "数据来自公开免密接口 · 仅供演示，不构成投资建议" draw_text.color: secondary draw_text.text_style.font_size: 10}
+    }
+
+    favs_pane := View{width: Fill height: Fill flow: Down
+        on_render: || view_favs_grouped()
+    }
+
+    settings_pane := View{width: Fill height: Fill flow: Down
+        on_render: || view_settings()
+    }
+
+    about_pane := View{width: Fill height: Fill flow: Down
+        on_render: || view_about()
+    }
+}

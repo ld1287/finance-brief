@@ -1,0 +1,17 @@
+# Runtime / build artifacts
+build/
+target/
+.local-state/
+*.key
+*.cert
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Splash runtime cache: the app writes cache_*.json / settings.json
+# into its storage jail (CWD-relative). Keep them local.
+# The nested folder name is the app id; do not commit it.
+finance-brief/
