@@ -17,6 +17,7 @@
 // The root `SolidView` is now `flow: Overlay` and holds five named panes;
 // only the active one is visible. `tab` still drives which market the main
 // pane shows, so the existing tabbar / refresh / detail logic is untouched.
+// D-2 adds "research" and "research_detail" panes (cards derived from news_rows).
 
 let tabs = [
     {id: "news" label: "要闻"}
@@ -62,6 +63,20 @@ let news_filters = [
     {id: "crypto" label: "加密"}
     {id: "fx" label: "外汇"}
 ]
+// D-2: research cards, derived from news_rows by title keywords.
+// research_rows holds {cat, row}; research_idx indexes the filtered list.
+let research_rows = []
+let research_filter = "all"
+let research_idx = -1
+let research_filters = [
+    {id: "all" label: "全部"}
+    {id: "policy" label: "政策"}
+    {id: "earnings" label: "财报"}
+    {id: "anomaly" label: "异动"}
+    {id: "macro" label: "宏观"}
+    {id: "onchain" label: "链上"}
+]
+let research_cats = ["policy" "earnings" "anomaly" "macro" "onchain"]
 let settings = {theme: "dark" hosts: {sina: 1 tencent: 1 hyperliquid: 1 frankfurter: 1}}
 
 // `tkey` selects the statement, `tick` is what we show.
@@ -244,16 +259,22 @@ fn refresh_pane(){
     let vis_favs = view == "favs"
     let vis_settings = view == "settings"
     let vis_about = view == "about"
+    let vis_research = view == "research"
+    let vis_research_detail = view == "research_detail"
     if ui.launcher_pane != nil { ui.launcher_pane.set_visible(vis_launcher) }
     if ui.main_pane != nil { ui.main_pane.set_visible(vis_main) }
     if ui.favs_pane != nil { ui.favs_pane.set_visible(vis_favs) }
     if ui.settings_pane != nil { ui.settings_pane.set_visible(vis_settings) }
     if ui.about_pane != nil { ui.about_pane.set_visible(vis_about) }
+    if ui.research_pane != nil { ui.research_pane.set_visible(vis_research) }
+    if ui.research_detail_pane != nil { ui.research_detail_pane.set_visible(vis_research_detail) }
     if vis_launcher && ui.launcher_pane != nil { ui.launcher_pane.render() }
     if vis_main && ui.main_pane != nil { ui.main_pane.render() }
     if vis_favs && ui.favs_pane != nil { ui.favs_pane.render() }
     if vis_settings && ui.settings_pane != nil { ui.settings_pane.render() }
     if vis_about && ui.about_pane != nil { ui.about_pane.render() }
+    if vis_research && ui.research_pane != nil { ui.research_pane.render() }
+    if vis_research_detail && ui.research_detail_pane != nil { ui.research_detail_pane.render() }
 }
 
 fn pick_view(v){
@@ -627,6 +648,87 @@ fn set_news_filter(f){
     if ui.list != nil { ui.list.render() }
 }
 
+// ---------------------------------------------------------------- research cards (D-2)
+
+fn research_keywords(c){
+    if c == "policy" { return ["央行" "政策" "决议" "公告" "证监会"] }
+    if c == "earnings" { return ["财报" "业绩" "营收" "净利"] }
+    if c == "anomaly" { return ["异动" "拉升" "跳水" "暴涨" "暴跌" "涨停" "跌停"] }
+    if c == "macro" { return ["GDP" "CPI" "PPI" "PMI" "失业率" "利率"] }
+    if c == "onchain" { return ["链上" "比特币" "BTC" "ETH" "区块链"] }
+    []
+}
+
+// First category (in research_cats order) whose keyword appears in the title; "" if none.
+fn research_cat_of(title){
+    for c in research_cats {
+        for kw in research_keywords(c) { if title.search(kw) >= 0 { return c } }
+    }
+    ""
+}
+
+fn research_label(c){
+    if c == "policy" { return "政策公告" }
+    if c == "earnings" { return "财报解读" }
+    if c == "anomaly" { return "行情异动" }
+    if c == "macro" { return "宏观数据" }
+    if c == "onchain" { return "链上数据" }
+    "其他"
+}
+
+fn research_color(c){
+    if c == "policy" { return #x3b82f6 }
+    if c == "earnings" { return #xf59e0b }
+    if c == "anomaly" { return #xef4444 }
+    if c == "macro" { return #x10b981 }
+    if c == "onchain" { return #x8b5cf6 }
+    #x6b7280
+}
+
+fn derive_research(){
+    let out = []
+    for r in news_rows {
+        let c = research_cat_of("" + r.title)
+        if c != "" { out.push({cat: c row: r}) }
+    }
+    research_rows = out
+}
+
+fn research_list(){
+    if research_filter == "all" { return research_rows }
+    let out = []
+    for e in research_rows { if e.cat == research_filter { out.push(e) } }
+    out
+}
+
+fn research_cur(){
+    let lst = research_list()
+    if research_idx < 0 { return nil }
+    if research_idx >= lst.len() { return nil }
+    lst[research_idx]
+}
+
+fn open_research(){
+    research_idx = -1
+    pick_view("research")
+}
+
+fn set_research_filter(f){
+    research_filter = f
+    research_idx = -1
+    if ui.research_pane != nil { ui.research_pane.render() }
+}
+
+fn open_research_detail(i){
+    research_idx = i
+    pick_view("research_detail")
+}
+
+fn toggle_research_fav(r){
+    toggle_fav(r)
+    if ui.research_detail_pane != nil { ui.research_detail_pane.render() }
+}
+
 // "来源：<媒体> · <时间>"; the time part is dropped for undated (sample) rows.
 // News rows always carry sub/ts (row_news, sample_for), so read them directly.
 fn source_line(d){
@@ -659,9 +761,12 @@ fn refresh(){
     load_fx()
     busy = false
     updated = time_now()
+    derive_research()
     rebuild()
     sync_status()
     if ui.list != nil { ui.list.render() }
+    if view == "launcher" && ui.launcher_pane != nil { ui.launcher_pane.render() }
+    if view == "research" && ui.research_pane != nil { ui.research_pane.render() }
 }
 
 fn pick(id){
@@ -707,6 +812,7 @@ fn boot(){
     load_state()
     load_settings()
     load_sample()
+    derive_research()
     rebuild()
     refresh_pane()
     refresh()
@@ -750,6 +856,11 @@ let SwitchOn = Switch{
     draw_bg +: {color: #x15803d color_hover: #x15803d color_down: #x166534}
     draw_text +: {color: #xffffff color_hover: #xffffff color_down: #xffffff}
 }
+// D-2: Phase 2 actions, shown greyed out with no on_click.
+let ChipOff = Chip{
+    draw_bg +: {color: #x1a1e27 color_hover: #x1a1e27 color_down: #x1a1e27}
+    draw_text +: {color: #x5a6070 color_hover: #x5a6070 color_down: #x5a6070}
+}
 
 // ---------------------------------------------------------------- view renderers (v0.2.0)
 
@@ -773,12 +884,12 @@ fn launcher_grid(){
                     Label{width: Fill text: "A · 美 · 加 · 外" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
                 }
             }
-            GestureView{width: Fit height: Fit on_tap: |x, y| open_tab("news")
+            GestureView{width: Fit height: Fit on_tap: |x, y| open_research()
                 RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
                     new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
                     Label{text: "🔬" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
                     Label{width: Fill text: "研究卡" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style: theme.font_bold{font_size: 16}}
-                    Label{width: Fill text: "本期占位" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
+                    Label{width: Fill text: "事实层 · " + ("" + research_rows.len()) + " 张" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
                 }
             }
         }
@@ -1009,6 +1120,106 @@ fn view_about(){
     }
 }
 
+fn view_research(){
+    let lst = research_list()
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 6 right: 12 top: 14 bottom: 6}
+            GhostButton{text: "‹ 返回" on_click: || pick_view("launcher")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
+                Label{text: "研究卡" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 26}}
+                Label{text: "事实层 · 来自要闻 · 共 " + ("" + lst.len()) + " 张" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+        }
+        ScrollXView{width: Fill height: 48 flow: Right spacing: 8 padding: Inset{left: 12 right: 12 top: 4 bottom: 8}
+            for f in research_filters {
+                if f.id == research_filter { ChipOn{text: f.label on_click: || set_research_filter(f.id)} }
+                else { Chip{text: f.label on_click: || set_research_filter(f.id)} }
+            }
+        }
+        ScrollYView{width: Fill height: Fill flow: Down spacing: 8 padding: Inset{left: 12 right: 12 bottom: 24}
+            if lst.len() == 0 {
+                View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
+                    Label{text: "暂无匹配的研究卡 · 要闻刷新后自动生成" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                }
+            }
+            for i in lst.len() {
+                GestureView{width: Fill height: Fit on_tap: |x, y| open_research_detail(i)
+                    RoundedView{width: Fill height: Fit flow: Right spacing: 10 padding: Inset{top: 10 bottom: 10 left: 10 right: 12}
+                        new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 10.0
+                        RoundedView{width: 4 height: 44 show_bg: true draw_bg.color: research_color(lst[i].cat) draw_bg.border_radius: 2.0}
+                        View{width: Fill height: Fit flow: Down spacing: 4
+                            Label{text: research_label(lst[i].cat) draw_text.color: research_color(lst[i].cat) draw_text.text_style: theme.font_bold{font_size: 11}}
+                            Label{width: Fill text: lst[i].row.title draw_text.color: ink draw_text.text_style.font_size: 15}
+                            Label{width: Fill text: source_line(lst[i].row) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// I-5: three stacked sections. Only the fact layer is real in Phase 1.
+fn view_research_detail(){
+    let e = research_cur()
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 6 right: 12 top: 14 bottom: 6}
+            GhostButton{text: "‹ 研究卡" on_click: || pick_view("research")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
+                Label{text: "研究卡详情" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 26}}
+                if e != nil { Label{text: research_label(e.cat) draw_text.color: research_color(e.cat) draw_text.text_style.font_size: 11} }
+            }
+        }
+        ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: Inset{left: 12 right: 12 top: 4 bottom: 24}
+            RoundedView{width: Fill height: Fit padding: Inset{top: 10 bottom: 10 left: 12 right: 12}
+                new_batch: true show_bg: true draw_bg.color: #x3b1518 draw_bg.border_radius: 10.0
+                Label{width: Fill text: "⚠ AI 生成内容，仅供参考，不构成投资建议" draw_text.color: #xfca5a5 draw_text.text_style: theme.font_bold{font_size: 14}}
+            }
+            if e == nil {
+                View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
+                    Label{text: "研究卡已更新，请返回列表重新选择" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                }
+            }
+            if e != nil {
+                // Fact layer
+                RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 12 bottom: 12 left: 14 right: 14}
+                    new_batch: true show_bg: true draw_bg.color: #x14223d draw_bg.border_radius: 12.0
+                    Label{text: "事实" draw_text.color: #x3b82f6 draw_text.text_style: theme.font_bold{font_size: 12}}
+                    Label{width: Fill text: e.row.title draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 18}}
+                    Label{width: Fill text: source_line(e.row) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                    if e.row.body != "" {
+                        Label{width: Fill text: e.row.body draw_text.color: #xd7dbe6 draw_text.text_style.font_size: 14}
+                    }
+                    if e.row.body == "" {
+                        Label{width: Fill text: "（无摘要）" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                    }
+                    if e.row.url != "" {
+                        Label{width: Fill text: e.row.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                    }
+                }
+                // Analysis layer (Phase 2)
+                RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 12 bottom: 12 left: 14 right: 14}
+                    new_batch: true show_bg: true draw_bg.color: #x221a3a draw_bg.border_radius: 12.0
+                    Label{text: "分析 · AI 生成" draw_text.color: #x8b5cf6 draw_text.text_style: theme.font_bold{font_size: 12}}
+                    Label{width: Fill text: "Phase 2：AI 解读与历史相似事件对比（未实现）" draw_text.color: #xa8a3c0 draw_text.text_style.font_size: 13}
+                }
+                // Action layer (Phase 2)
+                RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 12 bottom: 12 left: 14 right: 14}
+                    new_batch: true show_bg: true draw_bg.color: #x1c1f26 draw_bg.border_radius: 12.0
+                    Label{text: "建议" draw_text.color: #x6b7280 draw_text.text_style: theme.font_bold{font_size: 12}}
+                    Label{width: Fill text: "Phase 2：仅供参考的逻辑推演，不会出现买入/卖出指令（未实现）" draw_text.color: #x9ca3af draw_text.text_style.font_size: 13}
+                }
+                View{width: Fill height: Fit flow: Right spacing: 8 padding: Inset{top: 4}
+                    if is_fav(e.row.id) { BarButton{text: "⭐ 取消收藏" on_click: || toggle_research_fav(e.row)} }
+                    else { BarButton{text: "⭐ 收藏" on_click: || toggle_research_fav(e.row)} }
+                    ChipOff{text: "✓ 确认 (Phase 2)"}
+                    ChipOff{text: "✗ 驳回 (Phase 2)"}
+                }
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------- program
 
 // Root: flow: Overlay so only one of the five panes is visible at a time.
@@ -1127,5 +1338,13 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
 
     about_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_about()
+    }
+
+    research_pane := View{width: Fill height: Fill flow: Down
+        on_render: || view_research()
+    }
+
+    research_detail_pane := View{width: Fill height: Fill flow: Down
+        on_render: || view_research_detail()
     }
 }
