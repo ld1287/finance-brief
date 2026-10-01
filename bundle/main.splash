@@ -1329,9 +1329,7 @@ fn view_quotes(){
                 if quote_pane_period == "1d" { ChipOn{text: "1d" on_click: || switch_quote_pane_period("1d")} }
                 else { Chip{text: "1d" on_click: || switch_quote_pane_period("1d")} }
             }
-            CandlestickChart{
-                width: Fill height: Fill
-            }
+            Label{width: Fill height: Fill align: Align{x: 0.5 y: 0.5} text: "K 线图占位 (CandlestickChart 待 native set_data 接通)" draw_text.color: secondary draw_text.text_style.font_size: 13}
         }
     }
 }
