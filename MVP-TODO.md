@@ -103,7 +103,7 @@ git 作者：仓库发布者（用 `GIT_AUTHOR_*` / `GIT_COMMITTER_*` 环境变�
 - [ ] 12 界面全部可启动 / 可点击 / 不崩
 - [ ] 设置 + 免责声明 + Launcher 三件套可访问
 - [ ] `bundle_blake3` 重算 + `hub check` PASSED
-- [ ] 6 张以上真实截图入库
+- [ ] 8 张以上真实截图入库
 - [ ] README 同步更新（含数据源、hosts、Phase 1 完成清单）
 - [ ] 本地分支 commit 完毕，**未推远端**
 

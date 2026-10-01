@@ -76,6 +76,32 @@ pub fn handle(s: Service, args: serde_json::Value) -> Promise<Result<serde_json:
                 "fetched_at": 0
             })))
         }
+        Service::SettingsLoad => {
+            let v = crate::store::load_settings().unwrap_or_else(|_| serde_json::json!({}));
+            Promise::resolved(Ok(v))
+        }
+        Service::SettingsSave => {
+            let patch = args.get("patch").cloned().unwrap_or(serde_json::json!({}));
+            match crate::store::save_settings(&patch) {
+                Ok(_) => Promise::resolved(Ok(serde_json::json!({}))),
+                Err(e) => Promise::resolved(Err(e)),
+            }
+        }
+        Service::FavsToggle => {
+            // Phase 2 v0: splash 端仍直接 fs 写 favs.json (T3c 待做); native 端
+            // 仅 echo 状态. R-3 真解耦轮次再实现 read-modify-write.
+            let key = args.get("key").and_then(|v| v.as_str()).unwrap_or("");
+            let kind = args.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+            Promise::resolved(Ok(serde_json::json!({
+                "kind": kind, "key": key, "favored": true
+            })))
+        }
+        Service::FavsList => {
+            // Phase 2 v0: splash 端仍直接 fs 读 favs.json (T3c 待做)。
+            Promise::resolved(Ok(serde_json::json!({
+                "news": [], "quotes": []
+            })))
+        }
         Service::QuotesParseTencent => {
             let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
             let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a");
@@ -123,10 +149,37 @@ mod tests {
         let p = handle(
             Service::QuotesParseTencent,
             json!({
-                "body": "v_sh600519=\"1~\u{8d35}\u{5dde}\u{8305}\u{53f0}~600519~1888.50~1890.00~1875.20~1895.10~1880.30~-10.50~-0.55\";",
+                "body": "v_sh600519=\"1~\u{8d35}\u{5dde}\u{8303}\u{53f0}~600519~1888.50~1890.00~1875.20~1895.00~1880.30~-10.50~-0.55\";",
                 "market": "sh"
             }),
         );
+        let _ = p;
+    }
+
+    #[test]
+    fn host_settings_load_returns_object() {
+        let p = handle(Service::SettingsLoad, json!({}));
+        let _ = p;
+    }
+
+    #[test]
+    fn host_settings_save_echoes_patch() {
+        let p = handle(Service::SettingsSave, json!({"patch": {"theme": "dark"}}));
+        let _ = p;
+    }
+
+    #[test]
+    fn host_favs_toggle_echoes_key() {
+        let p = handle(
+            Service::FavsToggle,
+            json!({"kind": "quote", "key": "us:AAPL"}),
+        );
+        let _ = p;
+    }
+
+    #[test]
+    fn host_favs_list_returns_empty_arrays() {
+        let p = handle(Service::FavsList, json!({}));
         let _ = p;
     }
 }
