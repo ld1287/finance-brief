@@ -521,11 +521,9 @@ fn load_news(){
 // Tencent quote feed: `v_<code>="…~name~code~current~prev~open~…~time~chg~pct~high~low~…";`
 // per symbol, separated by ";". Index 3 is the current price, 32 the change %.
 //
-// G3 migration: HTTP is now issued through the low-level net.http_request
-// event surface so the body parser can later be swapped for a native
-// host.call. Parsing is still a local fallback (parse_tencent_fallback
-// below) - the next G-agent turns it into
-// host.call("quotes.parse_tencent", {market: tid, body: res.body}).
+// G9: native 真接 host.fetch("quotes.parse_tencent", {market, body})。
+// splash 仍 net.http_request 拿 body (中间态)，native parse_tencent_quote
+// 处理后返回 {rows, fetched_at}。真解耦留给 R-3 合并到 QuotesSnapshot.
 fn load_tencent(tid, syms, listed){
     if host_val("tencent") == 0 {
         if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
@@ -542,11 +540,14 @@ fn load_tencent(tid, syms, listed){
                 p.resolve(nil)
                 return
             }
-            // TODO: native parse - let parsed = host.call("quotes.parse_tencent", {market: tid, body: res.body})
-            // 临时 fallback: splash 内的极简 tencent parse（只填 id）
-            let parsed = parse_tencent_fallback(tid, res.body.to_string())
-            if parsed.len() > 0 {
-                set_rows(tid, parsed)
+            // G9: 真接 mod.host.fetch("quotes.parse_tencent") — native::host handle
+            // QuotesParseTencent 路由到 parse_tencent_quote(body, market)。splash 仍
+            // net.http_request 拿 body (中间态)，真解耦轮次 (splash 不再 fetch body)
+            // 留给 R-3 合并到 QuotesSnapshot.
+            let parsed = mod.host.fetch("quotes.parse_tencent", {market: tid body: res.body})
+            let rows = get(parsed, "rows", nil)
+            if rows != nil && rows.len() > 0 {
+                set_rows(tid, rows)
                 set_err(tid, false)
             } else {
                 if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
@@ -561,23 +562,6 @@ fn load_tencent(tid, syms, listed){
         }
     }
     p
-}
-
-// 临时 fallback: splash 内的极简 tencent parse（只填 id，name/price/pct 留到 native）
-fn parse_tencent_fallback(tid, body){
-    let out = []
-    let rest = body
-    while true {
-        let s = rest.find("=\"")
-        if s == nil { break }
-        let after = rest[s + 2:]
-        let m = after.find('"')
-        if m == nil { break }
-        let content = after[:m]
-        out.push({id: tid + ":" + content title: "" sub: "" metric: 0 pct: 0 body: "" url: "" ts: 0})
-        rest = after[m:]
-    }
-    return out
 }
 
 // 临时 fallback: splash 内的极简 hyperliquid parse（[meta, ctxs] → splash row）
