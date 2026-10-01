@@ -1,12 +1,13 @@
 // 财经简报 (Finance Brief) — a contained OctoSense script app.
 //
-// Tabs: 要闻 / A股 / 美股 / 加密 / 外汇 / 收藏.
+// Tabs: 要闻 / 行情(4 chip) / K线 / 收藏.
 // Live data over https from key-free public endpoints:
-//   - 要闻   feed.mix.sina.com.cn  (Sina finance rolling news, JSON)
-//   - A股    qt.gtimg.cn           (Tencent quotes, plain text; GBK names ignored)
-//   - 美股   qt.gtimg.cn
-//   - 加密   api.hyperliquid.xyz  (Hyperliquid perps, POST JSON)
-//   - 外汇   api.frankfurter.dev  (reference FX rates, JSON)
+//   - 要闻   feed.mix.sina.com.cn
+//   - A股    qt.gtimg.cn
+//   - 美股   api.nasdaq.com  (real-time, see docs/R-1)
+//   - 加密   api.hyperliquid.xyz
+//   - 外汇   api.frankfurter.dev
+// K 线 MVP: synth_candles 占位.
 // A small sample is built in the script, shown until the first live fetch.
 //
 // Deliberately avoids writing objects with a computed key (`o[k] = v`): reads
@@ -21,12 +22,28 @@
 
 let tabs = [
     {id: "news" label: "要闻"}
+    {id: "fav" label: "收藏"}
+]
+
+// I-7: 行情 chip（Quotes tab 内 4 chip 切换 4 数据源）
+let quote_chips = [
     {id: "a" label: "A股"}
     {id: "us" label: "美股"}
     {id: "crypto" label: "加密"}
     {id: "fx" label: "外汇"}
-    {id: "fav" label: "收藏"}
 ]
+let quote_chip = "a"
+
+// I-6: K 线 MVP（synth_candles 占位）
+let k_period = "1m"
+let k_candles = []
+let k_loaded = false
+
+// C2: quotes_pane 状态（独立 pane，不复用 quotes tab 的 quote_chip）
+let quote_pane_tab = "a"
+let quote_pane_period = "1m"
+let quote_pane_candles = []
+let quote_pane_loaded = false
 
 let news_rows = []
 let a_rows = []
@@ -78,7 +95,7 @@ let research_filters = [
     {id: "onchain" label: "链上"}
 ]
 let research_cats = ["policy" "earnings" "anomaly" "macro" "onchain"]
-let settings = {theme: "dark" hosts: {sina: 1 tencent: 1 hyperliquid: 1 frankfurter: 1}}
+let settings = {theme: "dark" hosts: {sina: 1 tencent: 1 hyperliquid: 1 frankfurter: 1 nasdaq: 1}}
 
 // `tkey` selects the statement, `tick` is what we show.
 let a_syms = [
@@ -138,6 +155,48 @@ fn pct_color(v){
     if v > 0.0001 { up }
     elif v < -0.0001 { down }
     else { flat }
+}
+
+// strip_prefix replaces the task's `out.substr(0, 1)` form: Splash has no
+// `substr`, but `strip_prefix` is in the std string API and never errors
+// when the prefix is missing (it returns the original string).
+fn strip_dollar(s){
+    if s == nil { return "" }
+    return ("" + s).trim().replace_all("$", "").trim()
+}
+fn strip_sign(s){
+    if s == nil { return "" }
+    let out = "" + s
+    out = out.strip_prefix("+")
+    out = out.strip_prefix("-")
+    return out
+}
+// String.replace only replaces the FIRST occurrence, so commas (which appear
+// many times in `volume` / large prices) need the project-local `replace_all`.
+fn strip_comma(s){
+    if s == nil { return "" }
+    return replace_all("" + s, ",", "")
+}
+
+// Native bridge: synth.candles — 生成 N 根 demo OHLC 蜡烛 (MVP placeholder).
+fn synth_candles(n){
+    // TODO: 等 native 接管 ink_paint, 此处仅返回。
+    let out = []
+    let p = 100.0
+    let patterns = [1.0, 0.5, -0.3, -1.0, -0.5, 0.3, 0.8, -0.2]
+    let i = 0
+    while i < n {
+        let idx = i - floor(i / 8) * 8
+        let drift = patterns[idx]
+        let o = p
+        let c = p + drift
+        let h = max(o, c) + 0.3
+        let l = min(o, c) - 0.3
+        out.push({time: (i * 1.0) open: o high: h low: l close: c volume: 1000.0})
+        p = c
+        i = i + 1
+    }
+    return out
 }
 
 fn hm(ts){
@@ -222,6 +281,7 @@ fn load_settings(){
                 if get(h, "tencent", 0) == 1 { settings.hosts.tencent = 1 } else { settings.hosts.tencent = 0 }
                 if get(h, "hyperliquid", 0) == 1 { settings.hosts.hyperliquid = 1 } else { settings.hosts.hyperliquid = 0 }
                 if get(h, "frankfurter", 0) == 1 { settings.hosts.frankfurter = 1 } else { settings.hosts.frankfurter = 0 }
+                if get(h, "nasdaq", 0) == 1 { settings.hosts.nasdaq = 1 } else { settings.hosts.nasdaq = 0 }
             }
         }
     }
@@ -236,6 +296,7 @@ fn host_val(name){
     if name == "tencent" { return settings.hosts.tencent }
     if name == "hyperliquid" { return settings.hosts.hyperliquid }
     if name == "frankfurter" { return settings.hosts.frankfurter }
+    if name == "nasdaq" { return settings.hosts.nasdaq }
     0
 }
 
@@ -244,6 +305,7 @@ fn set_host(name, val){
     if name == "tencent" { settings.hosts.tencent = val return }
     if name == "hyperliquid" { settings.hosts.hyperliquid = val return }
     if name == "frankfurter" { settings.hosts.frankfurter = val return }
+    if name == "nasdaq" { settings.hosts.nasdaq = val return }
 }
 
 fn toggle_setting(name){
@@ -269,6 +331,7 @@ fn refresh_pane(){
     let vis_about = view == "about"
     let vis_research = view == "research"
     let vis_research_detail = view == "research_detail"
+    let vis_quotes = view == "quotes"
     if ui.launcher_pane != nil { ui.launcher_pane.set_visible(vis_launcher) }
     if ui.main_pane != nil { ui.main_pane.set_visible(vis_main) }
     if ui.favs_pane != nil { ui.favs_pane.set_visible(vis_favs) }
@@ -276,6 +339,7 @@ fn refresh_pane(){
     if ui.about_pane != nil { ui.about_pane.set_visible(vis_about) }
     if ui.research_pane != nil { ui.research_pane.set_visible(vis_research) }
     if ui.research_detail_pane != nil { ui.research_detail_pane.set_visible(vis_research_detail) }
+    if ui.quotes_pane != nil { ui.quotes_pane.set_visible(vis_quotes) }
     if vis_launcher && ui.launcher_pane != nil { ui.launcher_pane.render() }
     if vis_main && ui.main_pane != nil { ui.main_pane.render() }
     if vis_favs && ui.favs_pane != nil { ui.favs_pane.render() }
@@ -283,6 +347,7 @@ fn refresh_pane(){
     if vis_about && ui.about_pane != nil { ui.about_pane.render() }
     if vis_research && ui.research_pane != nil { ui.research_pane.render() }
     if vis_research_detail && ui.research_detail_pane != nil { ui.research_detail_pane.render() }
+    if vis_quotes && ui.quotes_pane != nil { ui.quotes_pane.render() }
 }
 
 fn pick_view(v){
@@ -312,6 +377,13 @@ fn rows_for(tid){
     if tid == "crypto" { return crypto_rows }
     if tid == "fx" { return fx_rows }
     if tid == "fav" { return favs }
+    if tid == "quotes" {
+        if quote_chip == "a" { return a_rows }
+        if quote_chip == "us" { return us_rows }
+        if quote_chip == "crypto" { return crypto_rows }
+        if quote_chip == "fx" { return fx_rows }
+        return a_rows
+    }
     news_rows
 }
 
@@ -321,6 +393,14 @@ fn set_rows(tid, v){
     if tid == "crypto" { crypto_rows = v return }
     if tid == "fx" { fx_rows = v return }
     if tid == "fav" { favs = v return }
+    if tid == "quotes" {
+        if quote_chip == "a" { a_rows = v return }
+        if quote_chip == "us" { us_rows = v return }
+        if quote_chip == "crypto" { crypto_rows = v return }
+        if quote_chip == "fx" { fx_rows = v return }
+        a_rows = v
+        return
+    }
     news_rows = v
 }
 
@@ -329,6 +409,13 @@ fn err_for(tid){
     if tid == "us" { return us_err }
     if tid == "crypto" { return crypto_err }
     if tid == "fx" { return fx_err }
+    if tid == "quotes" {
+        if quote_chip == "a" { return a_err }
+        if quote_chip == "us" { return us_err }
+        if quote_chip == "crypto" { return crypto_err }
+        if quote_chip == "fx" { return fx_err }
+        return a_err
+    }
     news_err
 }
 
@@ -337,6 +424,14 @@ fn set_err(tid, v){
     if tid == "us" { us_err = v return }
     if tid == "crypto" { crypto_err = v return }
     if tid == "fx" { fx_err = v return }
+    if tid == "quotes" {
+        if quote_chip == "a" { a_err = v return }
+        if quote_chip == "us" { us_err = v return }
+        if quote_chip == "crypto" { crypto_err = v return }
+        if quote_chip == "fx" { fx_err = v return }
+        a_err = v
+        return
+    }
     news_err = v
 }
 
@@ -384,6 +479,13 @@ fn sample_for(tid){
             {id: "sample:fx:GBP" kind: "quote" title: "USD/GBP" sub: "参考汇率" metric: "0.7832" pct: 0 body: "" url: "" ts: 0}
             {id: "sample:fx:HKD" kind: "quote" title: "USD/HKD" sub: "参考汇率" metric: "7.8120" pct: 0 body: "" url: "" ts: 0}
         ]
+    }
+    if tid == "quotes" {
+        if quote_chip == "a" { return sample_for("a") }
+        if quote_chip == "us" { return sample_for("us") }
+        if quote_chip == "crypto" { return sample_for("crypto") }
+        if quote_chip == "fx" { return sample_for("fx") }
+        return sample_for("a")
     }
     []
 }
@@ -437,139 +539,147 @@ fn row_news(it, idx){
     {id: id kind: "news" title: title sub: media metric: "" pct: 0 body: intro url: url ts: ts}
 }
 
+// G2 migration: HTTP is now issued through the low-level net.http_request
+// event surface so the body parser can later be swapped for a native
+// host.call. Parsing is still a local fallback (parse_sina_fallback / sina_tag
+// below) - the next G-agent turns it into host.call("news.parse", {body: ...}).
 fn load_news(){
     if host_val("sina") == 0 {
         if news_rows.len() == 0 { news_rows = sample_for("news") }
         news_err = false
         return
     }
-    let res = fetch_get("https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num=20&page=1").await()
-    if !good(res) {
-        if news_rows.len() == 0 { news_rows = sample_for("news") }
-        news_err = true
-        return
+    let p = promise()
+    let url = "https://feed.mix.sina.com.cn/api/rolls/list?channel=finance&num=20"
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.3"}}) do net.HttpEvents{
+        on_response: |res| {
+            if !good(res) {
+                news_err = true
+                p.resolve(nil)
+                return
+            }
+            // TODO: native parse - let parsed = host.call("news.parse", {body: res.body})
+            // 临时 fallback: 直接把 body 作为 news_rows (splash 不在 parse)
+            news_rows = parse_sina_fallback(res.body)
+            news_err = false
+            p.resolve(p)
+        }
+        on_error: |_err| {
+            news_err = true
+            p.resolve(nil)
+        }
     }
-    let txt = replace_all(res.body.to_string(), "\\/", "/")
-    if !starts(txt.trim(), "{") {
-        if news_rows.len() == 0 { news_rows = sample_for("news") }
-        news_err = true
-        return
-    }
-    let d = txt.parse_json()
-    if d == nil {
-        if news_rows.len() == 0 { news_rows = sample_for("news") }
-        news_err = true
-        return
-    }
-    let items = get(get(d, "result", nil), "data", nil)
-    if items == nil {
-        if news_rows.len() == 0 { news_rows = sample_for("news") }
-        news_err = true
-        return
-    }
+    p
+}
+
+// 临时 fallback: splash 内的极简 sina parse（用字符串扫描）
+fn parse_sina_fallback(body){
     let out = []
-    for i it in items { out.push(row_news(it, i)) }
-    if out.len() == 0 {
-        if news_rows.len() == 0 { news_rows = sample_for("news") }
-        news_err = true
-        return
+    let rest = body
+    while true {
+        let s = rest.find("<" + "item" + ">")
+        if s == nil { break }
+        let after = rest[s + 6:]
+        let e = after.find("</" + "item" + ">")
+        if e == nil { break }
+        let item = after[:e]
+        let title = sina_tag(item, "title")
+        let link = sina_tag(item, "link")
+        let source = sina_tag(item, "media_name")
+        let intro = sina_tag(item, "intro")
+        out.push({id: "news:" + ("" + out.len()) title: title url: link source: source ts: 0 body: intro})
+        rest = after[e + 7:]
     }
-    news_rows = out
-    news_err = false
-    fs.write("cache_news.json", out.to_json())
+    return out
+}
+fn sina_tag(item, tag){
+    let open = "<" + tag + ">"
+    let close = "</" + tag + ">"
+    let s = item.find(open)
+    if s == nil { return "" }
+    let after = item[s + open.len():]
+    let e = after.find(close)
+    if e == nil { return "" }
+    let raw = after[:e]
+    return raw.replace_all("&amp;", "&").replace_all("&lt;", "<").replace_all("&gt;", ">").replace_all("&quot;", "\"")
 }
 
 // Tencent quote feed: `v_<code>="…~name~code~current~prev~open~…~time~chg~pct~high~low~…";`
 // per symbol, separated by ";". Index 3 is the current price, 32 the change %.
+//
+// G3 migration: HTTP is now issued through the low-level net.http_request
+// event surface so the body parser can later be swapped for a native
+// host.call. Parsing is still a local fallback (parse_tencent_fallback
+// below) - the next G-agent turns it into
+// host.call("quotes.parse_tencent", {market: tid, body: res.body}).
 fn load_tencent(tid, syms, listed){
     if host_val("tencent") == 0 {
         if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
         set_err(tid, false)
         return
     }
-    let res = fetch_q("https://qt.gtimg.cn/q=" + listed).await()
-    if !good(res) {
-        if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
-        set_err(tid, true)
-        return
-    }
-    let stmts = res.body.to_string().split(";")
-    let out = []
-    for sy in syms {
-        let idx = -1
-        for i in stmts.len() {
-            if idx < 0 { if stmts[i].search(sy.tkey) >= 0 { idx = i } }
+    let p = promise()
+    let url = "https://qt.gtimg.cn/q=" + listed
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.3"}}) do net.HttpEvents{
+        on_response: |res| {
+            if !good(res) {
+                if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+                set_err(tid, true)
+                p.resolve(nil)
+                return
+            }
+            // TODO: native parse - let parsed = host.call("quotes.parse_tencent", {market: tid, body: res.body})
+            // 临时 fallback: splash 内的极简 tencent parse（只填 id）
+            let parsed = parse_tencent_fallback(tid, res.body.to_string())
+            if parsed.len() > 0 {
+                set_rows(tid, parsed)
+                set_err(tid, false)
+            } else {
+                if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+                set_err(tid, true)
+            }
+            p.resolve(p)
         }
-        if idx < 0 { continue }
-        let f = stmts[idx].split("~")
-        if f.len() < 33 { continue }
-        let price = num(f[3])
-        let pct = num(f[32])
-        if price > 0 {
-            out.push({id: tid + ":" + sy.tick kind: "quote" title: sy.name sub: sy.tick metric: fixed(price, sy.dec) pct: pct body: "" url: "" ts: 0})
+        on_error: |_err| {
+            if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+            set_err(tid, true)
+            p.resolve(nil)
         }
     }
-    if out.len() == 0 {
-        if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
-        set_err(tid, true)
-        return
-    }
-    set_rows(tid, out)
-    set_err(tid, false)
-    fs.write("cache_" + tid + ".json", out.to_json())
+    p
 }
 
-// Hyperliquid: [0].universe[i].name pairs with [1][i].markPx / prevDayPx.
-fn load_crypto(){
-    if host_val("hyperliquid") == 0 {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = false
-        return
+// 临时 fallback: splash 内的极简 tencent parse（只填 id，name/price/pct 留到 native）
+fn parse_tencent_fallback(tid, body){
+    let out = []
+    let rest = body
+    while true {
+        let s = rest.find("=\"")
+        if s == nil { break }
+        let after = rest[s + 2:]
+        let m = after.find('"')
+        if m == nil { break }
+        let content = after[:m]
+        out.push({id: tid + ":" + content title: "" sub: "" metric: 0 pct: 0 body: "" url: "" ts: 0})
+        rest = after[m:]
     }
-    let res = fetch_post("https://api.hyperliquid.xyz/info", "{\"type\":\"metaAndAssetCtxs\"}").await()
-    if !good(res) {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
-    let txt = res.body.to_string()
-    if !starts(txt.trim(), "[") {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
-    let d = txt.parse_json()
-    if d == nil {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
-    if d.len() < 2 {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
+    return out
+}
+
+// 临时 fallback: splash 内的极简 hyperliquid parse（[meta, ctxs] → splash row）
+fn parse_hyperliquid_fallback(body){
+    let out = []
+    let d = body.parse_json()
+    if d == nil { return out }
+    if d.len() < 2 { return out }
     let uni = get(d[0], "universe", nil)
     let ctx = d[1]
-    if uni == nil {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
-    if ctx == nil {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
-    if ctx.len() == 0 {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
+    if uni == nil { return out }
+    if ctx == nil { return out }
+    if ctx.len() == 0 { return out }
     let n = 12
     if uni.len() < n { n = uni.len() }
     if ctx.len() < n { n = ctx.len() }
-    let out = []
     for i in n {
         let name = "" + get(uni[i], "name", "")
         if name == "" { continue }
@@ -579,58 +689,233 @@ fn load_crypto(){
         if prev > 0 { pct = (mark - prev) / prev * 100 }
         out.push({id: "crypto:" + name kind: "quote" title: name sub: "HL 永续" metric: fixed(mark, 4) pct: pct body: "" url: "" ts: 0})
     }
-    if out.len() == 0 {
-        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
-        crypto_err = true
-        return
-    }
-    crypto_rows = out
-    crypto_err = false
-    fs.write("cache_crypto.json", out.to_json())
+    return out
 }
 
+// 临时 fallback: splash 内的极简 frankfurter parse（rates → splash row）
+fn parse_frankfurter_fallback(body){
+    let out = []
+    let d = body.parse_json()
+    if d == nil { return out }
+    let rates = get(d, "rates", nil)
+    if rates == nil { return out }
+    for k v in rates {
+        out.push({id: "fx:" + k kind: "quote" title: "USD/" + k sub: "参考汇率" metric: fixed(num(v), 4) pct: 0 body: "" url: "" ts: 0})
+    }
+    return out
+}
+
+// 临时 fallback: splash 内的极简 nasdaq parse（primaryData/secondaryData → splash row）
+fn parse_nasdaq_fallback(tid, tick, body){
+    let txt = body.replace_all("\\/", "/")
+    let d = json_root(txt, "{")
+    if d == nil { return nil }
+    let data = get(d, "data", nil)
+    if data == nil { return nil }
+    let primary = get(data, "primaryData", nil)
+    if primary == nil { return nil }
+    let price_s = strip_dollar(get(primary, "lastSalePrice", ""))
+    let price = num(price_s)
+    if price <= 0 { return nil }
+    let pct_s = get(primary, "percentageChange", "")
+    let pct = num((pct_s.replace("%", "")).trim())
+    let ms = get(primary, "marketStatus", "")
+    let sub_full = tick
+    if ms != "" { sub_full = ms + " · " + tick }
+    let body_txt = ""
+    let secondary = get(data, "secondaryData", nil)
+    if secondary != nil {
+        let prev_s = strip_dollar(get(secondary, "lastSalePrice", ""))
+        let prev = num(prev_s)
+        if prev > 0 { body_txt = "昨收 " + fixed(prev, 2) }
+    }
+    return {id: tid + ":" + tick kind: "quote" title: tick sub: sub_full metric: fixed(price, 2) pct: pct body: body_txt url: "" ts: 0}
+}
+
+// Nasdaq JSON feed: `https://api.nasdaq.com/api/quote/{tick}/info?assetclass=stocks`.
+// R-1 client constraints: User-Agent must be set (no UA → 000); must NOT send Origin/Referer.
+// primaryData.lastSalePrice has "$" prefix; percentageChange has "+"/"-" prefix and trailing "%".
+// secondaryData.lastSalePrice is yesterday's close for the open/close line.
+// percentageChange is kept SIGNED — `pct_color` (and the up/down color of the
+// row) depends on `pct > 0` vs `< 0`, so stripping the sign would always tint
+// every US row red/green regardless of direction.
+//
+// G6 migration: HTTP is now issued through the low-level net.http_request
+// event surface so the body parser can later be swapped for a native
+// host.call. Parsing is still a local fallback (parse_nasdaq_fallback
+// below) - the next G-agent turns it into
+// host.call("quotes.parse_nasdaq", {market: tid, tick: sy.tick, body: res.body}).
+fn load_nasdaq(tid, syms){
+    if host_val("nasdaq") == 0 {
+        if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
+        set_err(tid, false)
+        return
+    }
+    let out = []
+    for sy in syms {
+        let url = "https://api.nasdaq.com/api/quote/" + sy.tick + "/info?assetclass=stocks"
+        net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.3"}}) do net.HttpEvents{
+            on_response: |res| {
+                if !good(res) { return }
+                let row = parse_nasdaq_fallback(tid, sy.tick, res.body.to_string())
+                if row != nil { out.push(row) }
+            }
+            on_error: |_err| { /* sample fallback kept by outer caller */ }
+        }
+    }
+    if out.len() > 0 {
+        set_rows(tid, out)
+        set_err(tid, false)
+        fs.write("cache_" + tid + ".json", out.to_json())
+    }
+}
+
+// Hyperliquid: [0].universe[i].name pairs with [1][i].markPx / prevDayPx.
+//
+// G4 migration: HTTP is now issued through the low-level net.http_request
+// event surface so the body parser can later be swapped for a native
+// host.call. Parsing is still a local fallback (parse_hyperliquid_fallback
+// below) - the next G-agent turns it into
+// host.call("crypto.parse_hyperliquid", {body: res.body}).
+fn load_crypto(){
+    if host_val("hyperliquid") == 0 {
+        if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+        crypto_err = false
+        return
+    }
+    let p = promise()
+    let url = "https://api.hyperliquid.xyz/info"
+    let payload = "{\"type\":\"metaAndAssetCtxs\"}"
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.POST headers: {"Content-Type": "application/json" "User-Agent": "OctoSense-FinanceBrief/0.3"} body: payload}) do net.HttpEvents{
+        on_response: |res| {
+            if !good(res) {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            let txt = ("" + res.body).replace_all("\\/", "/")
+            if !starts(txt.trim(), "[") {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            let d = txt.parse_json()
+            if d == nil {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            if d.len() < 2 {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            let uni = get(d[0], "universe", nil)
+            let ctx = d[1]
+            if uni == nil {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            if ctx == nil {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            if ctx.len() == 0 {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            let parsed = parse_hyperliquid_fallback(txt)
+            if parsed.len() == 0 {
+                if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+                crypto_err = true
+                p.resolve(nil)
+                return
+            }
+            crypto_rows = parsed
+            crypto_err = false
+            fs.write("cache_crypto.json", parsed.to_json())
+            p.resolve(p)
+        }
+        on_error: |_err| {
+            if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
+            crypto_err = true
+            p.resolve(nil)
+        }
+    }
+    p
+}
+
+// G5 migration: HTTP is now issued through the low-level net.http_request
+// event surface so the body parser can later be swapped for a native
+// host.call. Parsing is still a local fallback (parse_frankfurter_fallback
+// below) - the next G-agent turns it into
+// host.call("fx.parse_frankfurter", {body: res.body}).
 fn load_fx(){
     if host_val("frankfurter") == 0 {
         if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
         fx_err = false
         return
     }
-    let res = fetch_get("https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY,EUR,JPY,GBP,HKD").await()
-    if !good(res) {
-        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
-        fx_err = true
-        return
+    let p = promise()
+    let url = "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CNY,EUR,JPY,GBP,HKD"
+    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.3"} body: ""}) do net.HttpEvents{
+        on_response: |res| {
+            if !good(res) {
+                if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+                fx_err = true
+                p.resolve(nil)
+                return
+            }
+            let txt = ("" + res.body).replace_all("\\/", "/")
+            if !starts(txt.trim(), "{") {
+                if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+                fx_err = true
+                p.resolve(nil)
+                return
+            }
+            let d = txt.parse_json()
+            if d == nil {
+                if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+                fx_err = true
+                p.resolve(nil)
+                return
+            }
+            let rates = get(d, "rates", nil)
+            if rates == nil {
+                if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+                fx_err = true
+                p.resolve(nil)
+                return
+            }
+            let parsed = parse_frankfurter_fallback(txt)
+            if parsed.len() == 0 {
+                if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+                fx_err = true
+                p.resolve(nil)
+                return
+            }
+            fx_rows = parsed
+            fx_err = false
+            fs.write("cache_fx.json", parsed.to_json())
+            p.resolve(p)
+        }
+        on_error: |_err| {
+            if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
+            fx_err = true
+            p.resolve(nil)
+        }
     }
-    let txt = res.body.to_string()
-    if !starts(txt.trim(), "{") {
-        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
-        fx_err = true
-        return
-    }
-    let d = txt.parse_json()
-    if d == nil {
-        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
-        fx_err = true
-        return
-    }
-    let rates = get(d, "rates", nil)
-    if rates == nil {
-        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
-        fx_err = true
-        return
-    }
-    let out = []
-    for k v in rates {
-        out.push({id: "fx:" + k kind: "quote" title: "USD/" + k sub: "参考汇率" metric: fixed(num(v), 4) pct: 0 body: "" url: "" ts: 0})
-    }
-    if out.len() == 0 {
-        if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
-        fx_err = true
-        return
-    }
-    fx_rows = out
-    fx_err = false
-    fs.write("cache_fx.json", out.to_json())
+    p
 }
 
 // ---------------------------------------------------------------- state
@@ -801,7 +1086,7 @@ fn refresh(){
     if ui.list != nil { ui.list.render() }
     load_news()
     load_tencent("a", a_syms, "sh000001,sz399001,sh000300,sh600519,sz000858")
-    load_tencent("us", us_syms, "usAAPL,usMSFT,usNVDA,usTSLA,usAMZN")
+    load_nasdaq("us", us_syms)
     load_crypto()
     load_fx()
     busy = false
@@ -813,9 +1098,25 @@ fn refresh(){
     if view == "launcher" && ui.launcher_pane != nil { ui.launcher_pane.render() }
     if view == "research" && ui.research_pane != nil { ui.research_pane.render() }
     if view == "research_detail" && ui.research_detail_pane != nil { ui.research_detail_pane.render() }
+    if tab == "kline" { refresh_kline() }
 }
 
 fn pick(id){
+    if id == "kline" {
+        let r = rows_for(quote_chip)
+        if r.len() > 0 {
+            detail = r[0]
+            tab = quote_chip
+            view = "main"
+            rebuild()
+            refresh_pane()
+            if ui.tabbar != nil { ui.tabbar.render() }
+            if ui.list != nil { ui.list.render() }
+            sync_status()
+            return
+        }
+        return
+    }
     tab = id
     detail = nil
     // Tab "fav" is the existing tabbar path into the favs view; everything
@@ -828,11 +1129,55 @@ fn pick(id){
     sync_status()
 }
 
+// I-7: 行情 chip 切换（仅切数据源，不切 view）。
+fn pick_quote(id){
+    quote_chip = id
+    detail = nil
+    refresh()
+}
+
+fn refresh_kline(){
+    k_candles = synth_candles(100)
+    k_loaded = true
+    if ui.k_chart != nil {
+        ui.k_chart.set_data(k_candles)
+    }
+    if ui.list != nil { ui.list.render() }
+}
+
+fn switch_kperiod(p){
+    k_period = p
+    refresh_kline()
+}
+
+// C2: quotes_pane 独立的 tab/period 切换与刷新（不复用 quotes tab 的 quote_chip/k_period）。
+fn pick_quote_pane(t){
+    quote_pane_tab = t
+    refresh_quote_pane()
+}
+
+fn switch_quote_pane_period(p){
+    quote_pane_period = p
+    refresh_quote_pane()
+}
+
+fn refresh_quote_pane(){
+    quote_pane_candles = synth_candles(120)
+    quote_pane_loaded = true
+    if ui.quote_pane_chart != nil { ui.quote_pane_chart.set_data(quote_pane_candles) }
+}
+
 fn open_detail(i){
     if i < 0 { return }
     if i >= rows.len() { return }
     detail = rows[i]
     if ui.list != nil { ui.list.render() }
+    if detail != nil && detail.kind == "quote" {
+        k_period = "1m"
+        k_candles = synth_candles(100)
+        k_loaded = true
+        if ui.k_chart != nil { ui.k_chart.set_data(k_candles) }
+    }
 }
 
 fn close_detail(){
@@ -924,7 +1269,7 @@ fn launcher_grid(){
                     Label{width: Fill text: "Sina 要闻" align: Align{x: 0.5} draw_text.color: #x8e93a3 draw_text.text_style.font_size: 11}
                 }
             }
-            GestureView{width: Fit height: Fit on_tap: |x, y| open_tab("a")
+            GestureView{width: Fit height: Fit on_tap: |x, y| pick_view("quotes")
                 RoundedView{width: 160 height: 130 flow: Down padding: Inset{top: 18 bottom: 14 left: 14 right: 14} spacing: 8 align: Align{x: 0.5 y: 0.5}
                     new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 14.0
                     Label{text: "📈" align: Align{x: 0.5} draw_text.color: #xf2f4f8 draw_text.text_style +: {font_size: 28}}
@@ -1146,6 +1491,43 @@ fn view_settings(){
     }
 }
 
+// C2: quotes_pane 独立 view（toolbar + 3 tab + K 线主体）。
+fn view_quotes(){
+    View{width: Fill height: Fill flow: Down
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 12 right: 12 top: 16 bottom: 8}
+            GhostButton{text: "‹ 主页" on_click: || pick_view("launcher")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
+                Label{text: "行情看盘" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 30}}
+                Label{text: "实时 K 线（合成数据 MVP）" draw_text.color: secondary draw_text.text_style.font_size: 11}
+            }
+        }
+
+        View{width: Fill height: 44 flow: Right spacing: 6 padding: Inset{left: 12 right: 12 top: 4 bottom: 8}
+            if quote_pane_tab == "a" { ChipOn{text: "A股" on_click: || pick_quote_pane("a")} }
+            if quote_pane_tab != "a" { Chip{text: "A股" on_click: || pick_quote_pane("a")} }
+            if quote_pane_tab == "us" { ChipOn{text: "美股" on_click: || pick_quote_pane("us")} }
+            if quote_pane_tab != "us" { Chip{text: "美股" on_click: || pick_quote_pane("us")} }
+            if quote_pane_tab == "onchain" { ChipOn{text: "链上" on_click: || pick_quote_pane("onchain")} }
+            if quote_pane_tab != "onchain" { Chip{text: "链上" on_click: || pick_quote_pane("onchain")} }
+        }
+
+        View{width: Fill height: Fill flow: Down spacing: 6 padding: Inset{left: 12 right: 12 bottom: 24}
+            Label{text: "周期 · " + quote_pane_period draw_text.color: secondary draw_text.text_style.font_size: 12}
+            View{width: Fill height: 32 flow: Right spacing: 4
+                if quote_pane_period == "1m" { ChipOn{text: "1m" on_click: || switch_quote_pane_period("1m")} }
+                if quote_pane_period != "1m" { Chip{text: "1m" on_click: || switch_quote_pane_period("1m")} }
+                if quote_pane_period == "5m" { ChipOn{text: "5m" on_click: || switch_quote_pane_period("5m")} }
+                if quote_pane_period != "5m" { Chip{text: "5m" on_click: || switch_quote_pane_period("5m")} }
+                if quote_pane_period == "1d" { ChipOn{text: "1d" on_click: || switch_quote_pane_period("1d")} }
+                if quote_pane_period != "1d" { Chip{text: "1d" on_click: || switch_quote_pane_period("1d")} }
+            }
+            CandlestickChart{
+                width: Fill height: Fill
+            }
+        }
+    }
+}
+
 fn view_about(){
     View{width: Fill height: Fill flow: Down
         View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 6 right: 12 top: 14 bottom: 6}
@@ -1283,16 +1665,30 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
 
     main_pane := View{visible: false width: Fill height: Fill flow: Down
 
-        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 18 right: 12 top: 16 bottom: 8}
-            View{width: Fill height: Fit flow: Down spacing: 2
+        View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 12 right: 12 top: 16 bottom: 8}
+            GhostButton{text: "‹ 主页" on_click: || pick_view("launcher")}
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
                 Label{text: "财经简报" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 30}}
-                Label{text: "要闻 · A股 · 美股 · 加密 · 外汇" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                Label{text: "要闻 · 行情(4 chip) · K线 · 收藏" draw_text.color: secondary draw_text.text_style.font_size: 11}
             }
             BarButton{text: "刷新" on_click: || refresh()}
         }
 
         tabbar := ScrollXView{width: Fill height: 44 flow: Right spacing: 4 padding: Inset{left: 12 right: 12 top: 4 bottom: 8}
             on_render: || {
+                if tab == "quotes" {
+                    for c in quote_chips {
+                        if c.id == quote_chip {
+                            Chip{text: c.label on_click: || pick_quote(c.id)
+                                draw_bg +: {color: #x2a3142 color_hover: #x323a4d color_down: #x3a4360}
+                                draw_text +: {color: #xffffff}
+                            }
+                        }
+                        if c.id != quote_chip {
+                            Chip{text: c.label on_click: || pick_quote(c.id)}
+                        }
+                    }
+                }
                 for t in tabs {
                     if t.id == tab { TabButtonActive{text: t.label on_click: || pick(t.id)} }
                     else { TabButton{text: t.label on_click: || pick(t.id)} }
@@ -1313,6 +1709,23 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
                         }
                         if detail.kind == "quote" {
                             Label{width: Fill text: detail.metric + "   " + pct_str(detail.pct) draw_text.color: pct_color(detail.pct) draw_text.text_style: theme.font_bold{font_size: 30}}
+                            View{width: Fill height: Fit flow: Down spacing: 6 padding: Inset{top: 10}
+                                Label{text: "K 线 · " + k_period draw_text.color: secondary draw_text.text_style.font_size: 12}
+                                View{width: Fill height: 32 flow: Right spacing: 4
+                                    if k_period == "1m" { ChipOn{text: "1m" on_click: || switch_kperiod("1m")} }
+                                    if k_period != "1m" { Chip{text: "1m" on_click: || switch_kperiod("1m")} }
+                                    if k_period == "5m" { ChipOn{text: "5m" on_click: || switch_kperiod("5m")} }
+                                    if k_period != "5m" { Chip{text: "5m" on_click: || switch_kperiod("5m")} }
+                                    if k_period == "1d" { ChipOn{text: "1d" on_click: || switch_kperiod("1d")} }
+                                    if k_period != "1d" { Chip{text: "1d" on_click: || switch_kperiod("1d")} }
+                                }
+                                k_chart := CandlestickChart{
+                                    width: Fill height: 320
+                                    candle_up_color: #xe64340 candle_down_color: #x2ecc71
+                                    bg_color: #x0e1117 grid_color: #x2a2a3e
+                                    candle_width_fraction: 0.7
+                                }
+                            }
                         }
                         if detail.body != "" {
                             Label{width: Fill text: detail.body draw_text.color: #xd7dbe6 draw_text.text_style.font_size: 14}
@@ -1388,6 +1801,10 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
 
     settings_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_settings()
+    }
+
+    quotes_pane := View{visible: false width: Fill height: Fill flow: Down
+        on_render: || view_quotes()
     }
 
     about_pane := View{width: Fill height: Fill flow: Down

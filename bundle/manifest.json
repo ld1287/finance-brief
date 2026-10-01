@@ -5,7 +5,7 @@
   ],
   "id": "finance-brief",
   "integrity": {
-    "bundle_blake3": "a07e47cff793f65155460782ea7b75029f748958c1ec561fbc3736939156a99d"
+    "bundle_blake3": "43eb6719a3757a9b316e68ade8b179b5db6571ffb56beb3eca247ea7c18999a1"
   },
   "name": "财经简报",
   "network": {
@@ -13,9 +13,10 @@
       "feed.mix.sina.com.cn",
       "qt.gtimg.cn",
       "api.hyperliquid.xyz",
-      "api.frankfurter.dev"
+      "api.frankfurter.dev",
+      "api.nasdaq.com"
     ]
   },
   "schema": 1,
-  "version": "0.1.0"
+  "version": "0.3.0"
 }

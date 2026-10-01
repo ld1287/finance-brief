@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-10-01
+
+- **行情看盘改为独立 pane**：从主面板的 quotes tab 抽出成顶级 view（与 market-research 并列），含 "A 股 / 美股 / 链上" 3 个 tab + K 线主体（synth_candles 占位）
+- 修复进入"行情看盘"时错误渲染为新闻简报的 bug（C-1：5 个 splash 函数加 tid=="quotes" 分支）
+- 详情页内嵌 K 线（C-2）
+- 增加快捷入口 `pick("kline")`（C-3）
+- 数据源加入 NASDAQ 美股接口（`api.nasdaq.com`，仅网络白名单；运行时实现下一迭代）
+
 ## 0.2.0 — 2026-09-30
 
 - New top-level **Launcher** view (6-tile grid: News / Quotes / Research / Favs / Settings / About)

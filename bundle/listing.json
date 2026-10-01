@@ -5,12 +5,6 @@
   "category": "finance",
   "keywords": ["finance", "news", "stocks", "crypto", "forex", "行情", "财经"],
   "screenshots": [
-      "screenshots/01-news.png",
-      "screenshots/02-astocks.png",
-      "screenshots/03-us.png",
-      "screenshots/04-crypto.png",
-      "screenshots/05-fx.png",
-      "screenshots/06-favs.png"
     ],
   "icon": "assets/icon.svg",
   "platforms": ["linux"],
