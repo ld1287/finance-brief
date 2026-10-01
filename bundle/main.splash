@@ -200,11 +200,18 @@ fn sub_of(r){
     r.sub
 }
 
+// Splash has no type_of, and parse_json of bad text is not reliably nil, so
+// a cache file's root type is checked on its first non-space character.
+fn json_root(txt, open){
+    if !starts(txt.trim(), open) { return nil }
+    txt.parse_json()
+}
+
 // ---------------------------------------------------------------- settings I/O (v0.2.0)
 
 fn load_settings(){
     if fs.exists("settings.json") {
-        let v = fs.read("settings.json").parse_json()
+        let v = json_root(fs.read("settings.json"), "{")
         if v != nil {
             let t = get(v, "theme", "")
             if t == "dark" || t == "light" || t == "auto" { settings.theme = t }
@@ -287,6 +294,7 @@ fn pick_view(v){
 fn open_tab(tid){
     tab = tid
     detail = nil
+    if tid == "news" { news_filter = "all" }
     view = "main"
     rebuild()
     refresh_pane()
@@ -602,14 +610,14 @@ fn load_fx(){
 
 fn load_state(){
     if fs.exists("favs.json") {
-        let v = fs.read("favs.json").parse_json()
+        let v = json_root(fs.read("favs.json"), "[")
         if v != nil { favs = v }
     }
     for t in tabs {
         if t.id == "fav" { continue }
         let path = "cache_" + t.id + ".json"
         if fs.exists(path) {
-            let v = fs.read(path).parse_json()
+            let v = json_root(fs.read(path), "[")
             if v != nil { if v.len() > 0 { set_rows(t.id, v) cached = true } }
         }
     }
@@ -617,16 +625,21 @@ fn load_state(){
 
 fn news_keywords(f){
     if f == "macro" { return ["央行" "GDP" "CPI" "PMI" "利率"] }
-    if f == "ashare" { return ["A股" "沪" "深" "指数"] }
+    if f == "ashare" { return ["沪指" "深成指" "沪深" "创业板" "A股" "上证" "深证"] }
     if f == "crypto" { return ["比特币" "BTC" "ETH" "加密"] }
     if f == "fx" { return ["美元" "汇率" "人民币" "日元"] }
     []
 }
 
-// Splash strings have no `contains`; `search(p) >= 0` is the documented stand-in.
+// Case-insensitive contains (SCRIPT-API.md): BTC/btc, GDP/gdp all match.
+// Keywords hold no regex metacharacters, so they are used unescaped.
+fn kw_hit(title, kw){
+    regex(kw, "i").test(title)
+}
+
 fn news_match(title, f){
     if f == "all" { return true }
-    for kw in news_keywords(f) { if title.search(kw) >= 0 { return true } }
+    for kw in news_keywords(f) { if kw_hit(title, kw) { return true } }
     false
 }
 
@@ -662,7 +675,7 @@ fn research_keywords(c){
 // First category (in research_cats order) whose keyword appears in the title; "" if none.
 fn research_cat_of(title){
     for c in research_cats {
-        for kw in research_keywords(c) { if title.search(kw) >= 0 { return c } }
+        for kw in research_keywords(c) { if kw_hit(title, kw) { return c } }
     }
     ""
 }
@@ -732,8 +745,10 @@ fn toggle_research_fav(r){
 // "来源：<媒体> · <时间>"; the time part is dropped for undated (sample) rows.
 // News rows always carry sub/ts (row_news, sample_for), so read them directly.
 fn source_line(d){
+    let s = sub_of(d)
+    if s == "" { s = "未知来源" }
     let t = hm(d.ts)
-    if t == "" { "来源：" + d.sub } else { "来源：" + d.sub + " · " + t }
+    if t == "" { "来源：" + s } else { "来源：" + s + " · " + t }
 }
 
 fn status_line(){
@@ -809,6 +824,8 @@ fn toggle_fav(r){
 }
 
 fn boot(){
+    // Show the launcher first so a failure further down cannot leave another pane up.
+    refresh_pane()
     load_state()
     load_settings()
     load_sample()
@@ -1229,7 +1246,7 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
         on_render: || view_launcher()
     }
 
-    main_pane := View{width: Fill height: Fill flow: Down
+    main_pane := View{visible: false width: Fill height: Fill flow: Down
 
         View{width: Fill height: Fit flow: Right align: Align{y: 1.0} padding: Inset{left: 18 right: 12 top: 16 bottom: 8}
             View{width: Fill height: Fit flow: Down spacing: 2
@@ -1256,7 +1273,9 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
                     RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 14 bottom: 14 left: 14 right: 14}
                         new_batch: true show_bg: true draw_bg.color: #x171c26 draw_bg.border_radius: 12.0
                         Label{width: Fill text: detail.title draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 20}}
-                        Label{width: Fill text: sub_of(detail) + "  " + hm(detail.ts) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                        if detail.kind != "news" {
+                            Label{width: Fill text: sub_of(detail) + "  " + hm(detail.ts) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                        }
                         if detail.kind == "quote" {
                             Label{width: Fill text: detail.metric + "   " + pct_str(detail.pct) draw_text.color: pct_color(detail.pct) draw_text.text_style: theme.font_bold{font_size: 30}}
                         }
@@ -1328,23 +1347,23 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
         Label{width: Fill padding: Inset{left: 18 right: 18 bottom: 10} text: "数据来自公开免密接口 · 仅供演示，不构成投资建议" draw_text.color: secondary draw_text.text_style.font_size: 10}
     }
 
-    favs_pane := View{width: Fill height: Fill flow: Down
+    favs_pane := View{visible: false width: Fill height: Fill flow: Down
         on_render: || view_favs_grouped()
     }
 
-    settings_pane := View{width: Fill height: Fill flow: Down
+    settings_pane := View{visible: false width: Fill height: Fill flow: Down
         on_render: || view_settings()
     }
 
-    about_pane := View{width: Fill height: Fill flow: Down
+    about_pane := View{visible: false width: Fill height: Fill flow: Down
         on_render: || view_about()
     }
 
-    research_pane := View{width: Fill height: Fill flow: Down
+    research_pane := View{visible: false width: Fill height: Fill flow: Down
         on_render: || view_research()
     }
 
-    research_detail_pane := View{width: Fill height: Fill flow: Down
+    research_detail_pane := View{visible: false width: Fill height: Fill flow: Down
         on_render: || view_research_detail()
     }
 }
