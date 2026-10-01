@@ -21,6 +21,9 @@ impl SplashVm {
 pub enum Service {
     NewsRefresh,
     QuotesParseTencent,
+    QuotesParseNasdaq,
+    QuotesParseHyperliquid,
+    QuotesParseFrankfurter,
     QuotesSnapshot,
     QuotesCandles,
     FavsToggle,
@@ -76,16 +79,33 @@ pub fn handle(s: Service, args: serde_json::Value) -> Promise<Result<serde_json:
                 "fetched_at": 0
             })))
         }
-        Service::SettingsLoad => {
-            let v = crate::store::load_settings().unwrap_or_else(|_| serde_json::json!({}));
-            Promise::resolved(Ok(v))
+        Service::QuotesParseFrankfurter => {
+            let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            let rows = crate::parse::parse_frankfurter(body).unwrap_or_default();
+            Promise::resolved(Ok(serde_json::json!({"rows": rows, "fetched_at": 0})))
         }
-        Service::SettingsSave => {
-            let patch = args.get("patch").cloned().unwrap_or(serde_json::json!({}));
-            match crate::store::save_settings(&patch) {
-                Ok(_) => Promise::resolved(Ok(serde_json::json!({}))),
-                Err(e) => Promise::resolved(Err(e)),
-            }
+        Service::QuotesParseHyperliquid => {
+            let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            let rows = crate::parse::parse_hyperliquid_quotes(body).unwrap_or_default();
+            Promise::resolved(Ok(serde_json::json!({"rows": rows, "fetched_at": 0})))
+        }
+        Service::QuotesParseNasdaq => {
+            let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("us");
+            let rows = crate::parse::parse_nasdaq_quote(body, market).unwrap_or_default();
+            Promise::resolved(Ok(serde_json::json!({"rows": rows, "fetched_at": 0})))
+        }
+        Service::QuotesParseTencent => {
+            let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a");
+            let rows = crate::parse::parse_tencent_quote(body, market).unwrap_or_default();
+            Promise::resolved(Ok(serde_json::json!({"rows": rows, "fetched_at": 0})))
+        }
+        Service::FavsList => {
+            // Phase 2 v0: splash 端仍直接 fs 读 favs.json (T3c 待做)。
+            Promise::resolved(Ok(serde_json::json!({
+                "news": [], "quotes": []
+            })))
         }
         Service::FavsToggle => {
             // Phase 2 v0: splash 端仍直接 fs 写 favs.json (T3c 待做); native 端
@@ -96,17 +116,16 @@ pub fn handle(s: Service, args: serde_json::Value) -> Promise<Result<serde_json:
                 "kind": kind, "key": key, "favored": true
             })))
         }
-        Service::FavsList => {
-            // Phase 2 v0: splash 端仍直接 fs 读 favs.json (T3c 待做)。
-            Promise::resolved(Ok(serde_json::json!({
-                "news": [], "quotes": []
-            })))
+        Service::SettingsLoad => {
+            let v = crate::store::load_settings().unwrap_or_else(|_| serde_json::json!({}));
+            Promise::resolved(Ok(v))
         }
-        Service::QuotesParseTencent => {
-            let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
-            let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a");
-            let rows = crate::parse::parse_tencent_quote(body, market).unwrap_or_default();
-            Promise::resolved(Ok(serde_json::json!({"rows": rows, "fetched_at": 0})))
+        Service::SettingsSave => {
+            let patch = args.get("patch").cloned().unwrap_or(serde_json::json!({}));
+            match crate::store::save_settings(&patch) {
+                Ok(_) => Promise::resolved(Ok(serde_json::json!({}))),
+                Err(e) => Promise::resolved(Err(e)),
+            }
         }
         _ => Promise::resolved(Err("not implemented".into())),
     }
@@ -180,6 +199,40 @@ mod tests {
     #[test]
     fn host_favs_list_returns_empty_arrays() {
         let p = handle(Service::FavsList, json!({}));
+        let _ = p;
+    }
+
+    #[test]
+    fn host_quotes_parse_frankfurter() {
+        let p = handle(
+            Service::QuotesParseFrankfurter,
+            json!({
+                "body": r#"{"date":"2026-10-01","base":"USD","rates":{"EUR":0.92,"JPY":149.5}}"#
+            }),
+        );
+        let _ = p;
+    }
+
+    #[test]
+    fn host_quotes_parse_hyperliquid() {
+        let p = handle(
+            Service::QuotesParseHyperliquid,
+            json!({
+                "body": r#"[{"universe":[{"name":"BTC"}]},[{"markPx": "100.5", "prevDayPx": "95.0"}]]"#
+            }),
+        );
+        let _ = p;
+    }
+
+    #[test]
+    fn host_quotes_parse_nasdaq() {
+        let p = handle(
+            Service::QuotesParseNasdaq,
+            json!({
+                "body": r#"{"data":{"symbol":"AAPL","primaryData":{"lastSalePrice":"$178.45","percentageChange":"+1.25%"},"secondaryData":{"lastSalePrice":"$176.20"}}}"#,
+                "market": "us"
+            }),
+        );
         let _ = p;
     }
 }

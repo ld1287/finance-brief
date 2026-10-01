@@ -157,13 +157,7 @@ fn pct_color(v){
     else { flat }
 }
 
-// strip_prefix replaces the task's `out.substr(0, 1)` form: Splash has no
-// `substr`, but `strip_prefix` is in the std string API and never errors
-// when the prefix is missing (it returns the original string).
-fn strip_dollar(s){
-    if s == nil { return "" }
-    return ("" + s).trim().replace_all("$", "").trim()
-}
+
 // Native bridge: synth.candles — generate N 根 demo OHLC 蜡烛 (MVP placeholder).
 // 真接 host.fetch("quotes.candles") —— native/src/host.rs::handle QuotesCandles 路由
 // 到 synth::synth_candles(n)，返回 {candles: [Candle]}，fetch 类型（同步）。
@@ -466,23 +460,6 @@ fn clean_url(u){
     s.trim()
 }
 
-// Stable across refreshes: oid, else url, else title. Never the feed index.
-fn row_news(it, idx){
-    let title = "" + get(it, "title", "")
-    let media = "" + get(it, "media_name", "")
-    let intro = "" + get(it, "intro", "")
-    let url = clean_url(get(it, "url", ""))
-    let oid = "" + get(it, "oid", "")
-    let ts = 0
-    let raw = get(it, "ctime", "")
-    if raw != "" { ts = num(raw) }
-    let id = "news:" + oid
-    if oid == "" {
-        if url != "" { id = "news:u:" + url } else { id = "news:t:" + title }
-    }
-    {id: id kind: "news" title: title sub: media metric: "" pct: 0 body: intro url: url ts: ts}
-}
-
 // G8: native 真接 host.fetch("news.refresh")。splash 仍 net.http_request
 // 拿 body (中间态), native parse_sina_news 处理后返回 {rows, fetched_at}。
 // 真解耦 (splash 不再 fetch body) 待 R-3。
@@ -566,71 +543,11 @@ fn load_tencent(tid, syms, listed){
     p
 }
 
-// 临时 fallback: splash 内的极简 hyperliquid parse（[meta, ctxs] → splash row）
-fn parse_hyperliquid_fallback(body){
-    let out = []
-    let d = body.parse_json()
-    if d == nil { return out }
-    if d.len() < 2 { return out }
-    let uni = get(d[0], "universe", nil)
-    let ctx = d[1]
-    if uni == nil { return out }
-    if ctx == nil { return out }
-    if ctx.len() == 0 { return out }
-    let n = 12
-    if uni.len() < n { n = uni.len() }
-    if ctx.len() < n { n = ctx.len() }
-    for i in n {
-        let name = "" + get(uni[i], "name", "")
-        if name == "" { continue }
-        let mark = num(get(ctx[i], "markPx", 0))
-        let prev = num(get(ctx[i], "prevDayPx", 0))
-        let pct = 0
-        if prev > 0 { pct = (mark - prev) / prev * 100 }
-        out.push({id: "crypto:" + name kind: "quote" title: name sub: "HL 永续" metric: fixed(mark, 4) pct: pct body: "" url: "" ts: 0})
-    }
-    return out
-}
 
-// 临时 fallback: splash 内的极简 frankfurter parse（rates → splash row）
-fn parse_frankfurter_fallback(body){
-    let out = []
-    let d = body.parse_json()
-    if d == nil { return out }
-    let rates = get(d, "rates", nil)
-    if rates == nil { return out }
-    for k v in rates {
-        out.push({id: "fx:" + k kind: "quote" title: "USD/" + k sub: "参考汇率" metric: fixed(num(v), 4) pct: 0 body: "" url: "" ts: 0})
-    }
-    return out
-}
 
-// 临时 fallback: splash 内的极简 nasdaq parse（primaryData/secondaryData → splash row）
-fn parse_nasdaq_fallback(tid, tick, body){
-    let txt = body.replace_all("\\/", "/")
-    let d = json_root(txt, "{")
-    if d == nil { return nil }
-    let data = get(d, "data", nil)
-    if data == nil { return nil }
-    let primary = get(data, "primaryData", nil)
-    if primary == nil { return nil }
-    let price_s = strip_dollar(get(primary, "lastSalePrice", ""))
-    let price = num(price_s)
-    if price <= 0 { return nil }
-    let pct_s = get(primary, "percentageChange", "")
-    let pct = num((pct_s.replace("%", "")).trim())
-    let ms = get(primary, "marketStatus", "")
-    let sub_full = tick
-    if ms != "" { sub_full = ms + " · " + tick }
-    let body_txt = ""
-    let secondary = get(data, "secondaryData", nil)
-    if secondary != nil {
-        let prev_s = strip_dollar(get(secondary, "lastSalePrice", ""))
-        let prev = num(prev_s)
-        if prev > 0 { body_txt = "昨收 " + fixed(prev, 2) }
-    }
-    return {id: tid + ":" + tick kind: "quote" title: tick sub: sub_full metric: fixed(price, 2) pct: pct body: body_txt url: "" ts: 0}
-}
+
+
+
 
 // Nasdaq JSON feed: `https://api.nasdaq.com/api/quote/{tick}/info?assetclass=stocks`.
 // R-1 client constraints: User-Agent must be set (no UA → 000); must NOT send Origin/Referer.
@@ -640,11 +557,8 @@ fn parse_nasdaq_fallback(tid, tick, body){
 // row) depends on `pct > 0` vs `< 0`, so stripping the sign would always tint
 // every US row red/green regardless of direction.
 //
-// G6 migration: HTTP is now issued through the low-level net.http_request
-// event surface so the body parser can later be swapped for a native
-// host.call. Parsing is still a local fallback (parse_nasdaq_fallback
-// below) - the next G-agent turns it into
-// host.call("quotes.parse_nasdaq", {market: tid, tick: sy.tick, body: res.body}).
+// G-equivalent: native 真接 mod.host.fetch("quotes.parse_nasdaq")。
+// native::host handle QuotesParseNasdaq 路由到 parse_nasdaq_quote(body, market)。
 fn load_nasdaq(tid, syms){
     if host_val("nasdaq") == 0 {
         if rows_for(tid).len() == 0 { set_rows(tid, sample_for(tid)) }
@@ -657,8 +571,11 @@ fn load_nasdaq(tid, syms){
         net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.3"}}) do net.HttpEvents{
             on_response: |res| {
                 if !good(res) { return }
-                let row = parse_nasdaq_fallback(tid, sy.tick, res.body.to_string())
-                if row != nil { out.push(row) }
+                let parsed = mod.host.fetch("quotes.parse_nasdaq", {market: tid body: res.body})
+                let rows = get(parsed, "rows", nil)
+                if rows != nil && rows.len() > 0 {
+                    out.push(rows[0])
+                }
             }
             on_error: |_err| { /* sample fallback kept by outer caller */ }
         }
@@ -672,11 +589,9 @@ fn load_nasdaq(tid, syms){
 
 // Hyperliquid: [0].universe[i].name pairs with [1][i].markPx / prevDayPx.
 //
-// G4 migration: HTTP is now issued through the low-level net.http_request
-// event surface so the body parser can later be swapped for a native
-// host.call. Parsing is still a local fallback (parse_hyperliquid_fallback
-// below) - the next G-agent turns it into
-// host.call("crypto.parse_hyperliquid", {body: res.body}).
+// G-equivalent: native 真接 mod.host.fetch("quotes.parse_hyperliquid")。
+// native::host handle QuotesParseHyperliquid 路由到 parse_hyperliquid_quotes(body)。
+// splash 仍 net.http_request 拿 body (中间态), 真解耦轮次留给 R-3。
 fn load_crypto(){
     if host_val("hyperliquid") == 0 {
         if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
@@ -734,17 +649,15 @@ fn load_crypto(){
                 p.resolve(nil)
                 return
             }
-            let parsed = parse_hyperliquid_fallback(txt)
-            if parsed.len() == 0 {
+            let parsed = mod.host.fetch("quotes.parse_hyperliquid", {body: res.body})
+            let rows = get(parsed, "rows", nil)
+            if rows != nil && rows.len() > 0 {
+                crypto_rows = rows
+                crypto_err = false
+            } else {
                 if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
                 crypto_err = true
-                p.resolve(nil)
-                return
             }
-            crypto_rows = parsed
-            crypto_err = false
-            fs.write("cache_crypto.json", parsed.to_json())
-            p.resolve(p)
         }
         on_error: |_err| {
             if crypto_rows.len() == 0 { crypto_rows = sample_for("crypto") }
@@ -755,11 +668,8 @@ fn load_crypto(){
     p
 }
 
-// G5 migration: HTTP is now issued through the low-level net.http_request
-// event surface so the body parser can later be swapped for a native
-// host.call. Parsing is still a local fallback (parse_frankfurter_fallback
-// below) - the next G-agent turns it into
-// host.call("fx.parse_frankfurter", {body: res.body}).
+// G-equivalent: native 真接 mod.host.fetch("quotes.parse_frankfurter")。
+// native::host handle QuotesParseFrankfurter 路由到 parse_frankfurter(body)。
 fn load_fx(){
     if host_val("frankfurter") == 0 {
         if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
@@ -797,17 +707,15 @@ fn load_fx(){
                 p.resolve(nil)
                 return
             }
-            let parsed = parse_frankfurter_fallback(txt)
-            if parsed.len() == 0 {
+            let parsed = mod.host.fetch("quotes.parse_frankfurter", {body: res.body})
+            let rows = get(parsed, "rows", nil)
+            if rows != nil && rows.len() > 0 {
+                fx_rows = rows
+                fx_err = false
+            } else {
                 if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
                 fx_err = true
-                p.resolve(nil)
-                return
             }
-            fx_rows = parsed
-            fx_err = false
-            fs.write("cache_fx.json", parsed.to_json())
-            p.resolve(p)
         }
         on_error: |_err| {
             if fx_rows.len() == 0 { fx_rows = sample_for("fx") }
@@ -958,7 +866,7 @@ fn toggle_research_fav(r){
 }
 
 // "来源：<媒体> · <时间>"; the time part is dropped for undated (sample) rows.
-// News rows always carry sub/ts (row_news, sample_for), so read them directly.
+// News rows always carry sub/ts (sample_for), so read them directly.
 fn source_line(d){
     let s = sub_of(d)
     if s == "" { s = "未知来源" }
