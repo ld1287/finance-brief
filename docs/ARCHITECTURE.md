@@ -1,6 +1,6 @@
 # finance-brief 项目架构
 
-> 适用版本：`finance-brief v0.3.0`（重构期，2026-10-01）
+> 适用版本：`finance-brief v0.3.0`（重构期，2026-10-02）
 > 仓库：`git@github.com:ld1287/finance-brief.git`
 > 文档目的：记录目标架构、模块边界、splash ↔ Rust 通讯接口，作为后续重构的事实基准
 
@@ -110,6 +110,7 @@ splash 通过 OctoScript DSL 的 host API 调 native。两个核心入口：
 |---|---|---|---|---|
 | `news.refresh` | `fetch` | `{limit: int}` | `{rows: [NewsRow], fetched_at: int}` | 拉 Sina 财经要闻 RSS，parse + cache |
 | `quotes.snapshot` | `fetch` | `{tab: "a\|us\|hk\|crypto\|fx", symbols: [string]}` | `{rows: [QuoteRow], fetched_at: int}` | 多源汇总（A/美/港 → Tencent；crypto → Hyperliquid；fx → Frankfurter） |
+| `quotes.parse_tencent` | `fetch` | `{market: string, body: string}` | `{rows: [QuoteRow], fetched_at: int}` | **中间态**（G3 注释设计）：splash 仍 net.http_request 拿 body, native 只 parse。等 R-3 真解耦轮次合并到 `quotes.snapshot` |
 | `quotes.candles` | `fetch` | `{symbol: string, period: "1m\|5m\|1h\|1d", count: int}` | `{candles: [Candle]}` | K 线（1m/5m/1h 用 synth，1d 用源）；详情见 `R-2-kline-feasibility.md` |
 | `favs.toggle` | `call` | `{kind: "news\|quote", key: string}` | `{favored: bool}` | 收藏 toggle，异步写 `settings.json` |
 | `favs.list` | `fetch` | `{}` | `{news: [string], quotes: [string]}` | 列出所有收藏 key |
@@ -133,23 +134,26 @@ struct Settings  { theme: String, refresh_sec: u32, favs: Vec<Favorite>, news_fi
 
 ### 5.1 迁到 native（数据/网络/持久化层）
 
-> 当前 splash 中以下函数全部迁出，splash 中不再保留任何 HTTP/JSON/文件 IO：
-
-| 函数 | 当前 splash 行号 | 迁到 |
-|---|---|---|
-| `fetch_get` | L208 | `native/src/sources/*`（统一封装） |
-| `fetch_post` | L217 | `native/src/sources/*` |
-| `fetch_q` | L229 | `native/src/sources/*` |
-| `load_news` | L542 | `sources/sina.rs` + 暴露为 `news.refresh` |
-| `load_tencent` | L586 | `sources/tencent.rs` + 暴露为 `quotes.snapshot` |
-| `load_crypto` | L677 | `sources/hyperliquid.rs` + 暴露为 `quotes.snapshot`（kind=crypto） |
-| `load_fx` | L746 | `sources/frankfurter.rs` + 暴露为 `quotes.snapshot`（kind=fx） |
-| `load_nasdaq` | L631 | `sources/nasdaq.rs` + 暴露为 `quotes.snapshot`（kind=us） |
-| `load_sample` | L493 | 移除（native parse 层自带 fallback） |
-| `load_settings` | L272 | `store.rs` + 暴露为 `settings.load` |
-| `save_settings` | L290 | `store.rs` + 暴露为 `settings.save` |
-| `toggle_setting` | L311 | splash 调 `settings.save` 即可 |
-| `synth_candles` | L183 | `synth.rs` + 暴露为 `quotes.candles` |
+| 函数 | 状态 | 迁到 | commit |
+|------|------|------|--------|
+| `fetch_get` | ✅ 已删 (T2) | `native/src/sources/*` | 68ecf77 |
+| `fetch_post` | ✅ 已删 (T2) | 同上 | 68ecf77 |
+| `fetch_q` | ✅ 已删 (T2) | 同上 | 68ecf77 |
+| `load_news` | 🔄 splash 改 host.fetch, splash 仍 net.http_request (中间态) | `sources/sina.rs` (R-3 合并) | d76c1f5 |
+| `load_tencent` | 🔄 splash 仍用 `parse_tencent_fallback` (G9a 待做) | `sources/tencent.rs` | — |
+| `load_crypto` | 🔄 splash 仍用 `parse_hyperliquid_fallback` | `sources/hyperliquid.rs` | — |
+| `load_fx` | 🔄 splash 仍用 `parse_frankfurter_fallback` | `sources/frankfurter.rs` | — |
+| `load_nasdaq` | 🔄 splash 仍用 `parse_nasdaq_fallback` | `sources/nasdaq.rs` | — |
+| `load_sample` | ⏳ 移除 | - | - |
+| `load_settings` | ⏳ splash 仍直接 fs 读 (T3 待做) | `store.rs` | — |
+| `save_settings` | ⏳ splash 仍直接 fs 写 (T3 待做) | `store.rs` | — |
+| `toggle_setting` | ⏳ (T3 待做) | splash 调 `settings.save` | — |
+| `synth_candles` | ✅ splash 改 host.fetch, native handle QuotesCandles | `synth.rs` | ef7247e |
+| `parse_sina_news` | ✅ native 实现 | `parse.rs` | 9542f63 |
+| `parse_tencent_quote` | ✅ native 实现 | `parse.rs` | 9542f63 |
+| `parse_hyperliquid_quotes` | ✅ native 实现 | `parse.rs` | 9542f63 |
+| `parse_frankfurter` | ✅ native 实现 | `parse.rs` | 9542f63 |
+| `parse_nasdaq_quote` | ✅ native 实现 | `parse.rs` | 9542f63 |
 
 > 注：用户在 2026-10-01 22:25 表述中用的是 `load_hyperliquid` / `load_frankfurter`，本表按 splash 当前真实函数名（`load_crypto` / `load_fx`）列出，行为等价。
 

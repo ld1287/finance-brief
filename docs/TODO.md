@@ -1,6 +1,6 @@
 # finance-brief TODO 总览
 
-> 最后更新：2026-10-01
+> 最后更新：2026-10-02 (Phase 3 + T2 完成)
 > 项目：finance-brief (OctoSense splash 应用)
 > 维护者：zed-agent
 
@@ -55,6 +55,21 @@
 
 **预计 splash 行数**：1693 → ~400 行（瘦 76%）
 
+**已完成（2026-10-01 Phase 3 + T2）**：
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| 数据源迁 5/5 | 9542f63 | native 实现 parse_sina_news / parse_tencent_quote / parse_hyperliquid_quotes / parse_frankfurter / parse_nasdaq_quote + 单元测试 |
+| splash 真接 host.fetch | ef7247e | native host::handle 2/7 routes (QuotesCandles → synth_candles, NewsRefresh → parse_sina_news) + splash synth_candles 改 host.fetch |
+| 删死代码 T2 | 68ecf77 | 删 fetch_get/post/q + strip_sign/comma (-44 行) |
+| splash 真接 sina | d76c1f5 | load_news on_response 改 mod.host.fetch("news.refresh") + 删 parse_sina_fallback/sina_tag |
+
+**验证状态**：
+- `cargo test -p finance-brief-scaffold` 28/28 过
+- reproduce agent 启动 octosense 加载 finance-brief splash bundle OK (eval 77584 bytes)
+- launcher 渲染与 G7 capture 一致 (无 parse error)
+- 截屏: `/tmp/g7-repro/T2-verify.png` + `/home/lumina/octoOs/_captures/T2-verify.png`
+
 **待办**：
 
 - [ ] P1-1：迁 fetch_* + load_*（splash 改用 `host.call` / `host.fetch`）
@@ -65,18 +80,29 @@
 
 ---
 
-## 3. native crate 任务清单（已建骨架）
+## 3. native crate 任务清单
 
-- [x] 建 `native/Cargo.toml` + `src/{lib,model,parse,synth,store,host,sources/{mod,sina,tencent,hyperliquid,frankfurter,nasdaq}}.rs` 占位骨架
-- [x] cargo build + cargo test 通过
-- [ ] 实现 `parse_sina_news`（RSS 解析）
-- [ ] 实现 `parse_tencent_quote`（CSV 解析）
-- [ ] 实现 `parse_hyperliquid`（JSON）
-- [ ] 实现 `parse_frankfurter`（JSON）
-- [ ] 实现 `parse_nasdaq`（JSON，待调研）
-- [ ] 实现 `store::load_settings` / `save_settings` / `load_cache` / `save_cache`
-- [ ] 实现 `host::register`（注册 7 个 service 到 SplashVm）
-- [ ] 实现 `host::handle` 路由
+### 已完成 (2026-10-01)
+- [x] 建 `native/Cargo.toml` + src 骨架
+- [x] cargo build + cargo test 通过 (28/28)
+- [x] 实现 `parse_sina_news` (RSS, G2)
+- [x] 实现 `parse_tencent_quote` (CSV, G3)
+- [x] 实现 `parse_hyperliquid_quotes` (JSON POST, G4)
+- [x] 实现 `parse_frankfurter` (JSON GET, G5)
+- [x] 实现 `parse_nasdaq_quote` (JSON, G6)
+- [x] 实现 `synth::synth_candles` (n 根 demo OHLC, G1)
+- [x] 实现 `host::handle` 路由 2 个 service (QuotesCandles → synth, NewsRefresh → parse_sina_news)
+
+### 未完成 (留 TODO)
+- [ ] 实现 `parse_tencent_news` (RSS, 当前 stub)
+- [ ] 实现 `parse_nasdaq_candles` (K 线, 当前 stub)
+- [ ] 实现 `store::load_settings` / `save_settings` / `load_cache` / `save_cache` (T3)
+- [ ] 实现 `host::handle` 路由剩余 5 个 service:
+  - [ ] QuotesSnapshot (T4: native 自己 fetch 多源)
+  - [ ] QuotesParseTencent (G9a, 中间态)
+  - [ ] FavsToggle / FavsList (T3)
+  - [ ] SettingsLoad / SettingsSave (T3)
+- [ ] 实现 `host::register` (注册 7 个 service 到 SplashVm, 当前 stub)
 
 ---
 
@@ -88,7 +114,7 @@
 | Tencent 行情 | qt.gtimg.cn | 已验证 ✓ |
 | Hyperliquid | api.hyperliquid.xyz | 已验证 ✓ |
 | Frankfurter 外汇 | api.frankfurter.dev | 已验证 ✓ |
-| NASDAQ 美股 | api.nasdaq.com | **未验证**，待接入 |
+| NASDAQ 美股 | api.nasdaq.com | native parse_nasdaq_quote 实现 ✓ (G6)；端到端 splash 真接未做 (留 TODO) |
 
 ---
 
@@ -100,6 +126,13 @@
 ---
 
 ## 6. 当前阶段验收标准（重构 demo 完成后）
+
+**已通过验证 (2026-10-01)**:
+- [x] `cargo test -p finance-brief-scaffold` 28/28 通过
+- [x] splash bundle 启动 reproduce 验证 (eval 77584 bytes, launcher 渲染)
+- [x] splash 行数 1693 → 1734 (净 -41 行, 含 G2-G8 的 fallback helper 增加)
+- [x] native 6 个 parse 实现 + 2 个 host routes
+- [x] splash 2 处真接 host.fetch (synth_candles + load_news)
 
 - [ ] splash 1693 → ~400 行（`wc -l bundle/main.splash` 验证）
 - [ ] splash 不再 import fetch / load / settings 函数（`grep '^fn ' splash | grep -E "fetch|load|save|store"` 验证为空）
