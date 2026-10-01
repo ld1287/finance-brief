@@ -164,20 +164,6 @@ fn strip_dollar(s){
     if s == nil { return "" }
     return ("" + s).trim().replace_all("$", "").trim()
 }
-fn strip_sign(s){
-    if s == nil { return "" }
-    let out = "" + s
-    out = out.strip_prefix("+")
-    out = out.strip_prefix("-")
-    return out
-}
-// String.replace only replaces the FIRST occurrence, so commas (which appear
-// many times in `volume` / large prices) need the project-local `replace_all`.
-fn strip_comma(s){
-    if s == nil { return "" }
-    return replace_all("" + s, ",", "")
-}
-
 // Native bridge: synth.candles — generate N 根 demo OHLC 蜡烛 (MVP placeholder).
 // 真接 host.fetch("quotes.candles") —— native/src/host.rs::handle QuotesCandles 路由
 // 到 synth::synth_candles(n)，返回 {candles: [Candle]}，fetch 类型（同步）。
@@ -189,36 +175,6 @@ fn hm(ts){
     if ts == 0 { return "" }
     let t = local_time(ts)
     padn(t.month, 2) + "-" + padn(t.day, 2) + " " + padn(t.hour, 2) + ":" + padn(t.minute, 2)
-}
-
-fn fetch_get(url){
-    let p = promise()
-    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "OctoSense-FinanceBrief/0.2"}}) do net.HttpEvents{
-        on_response: |res| p.resolve(res)
-        on_error: |_err| p.resolve(nil)
-    }
-    p
-}
-
-fn fetch_post(url, payload){
-    let p = promise()
-    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.POST headers: {"Content-Type": "application/json" "User-Agent": "OctoSense-FinanceBrief/0.2"} body: payload}) do net.HttpEvents{
-        on_response: |res| p.resolve(res)
-        on_error: |_err| p.resolve(nil)
-    }
-    p
-}
-
-// Quote feeds are plain text with GBK names; display names are ours and only
-// the ASCII numbers are read. Sina's hq.sinajs.cn was tried first and aborts
-// with a TLS `unexpected eof` in this client, so Tencent's qt.gtimg.cn is used.
-fn fetch_q(url){
-    let p = promise()
-    net.http_request(net.HttpRequest{url: url method: net.HttpMethod.GET headers: {"User-Agent": "Mozilla/5.0"}}) do net.HttpEvents{
-        on_response: |res| p.resolve(res)
-        on_error: |_err| p.resolve(nil)
-    }
-    p
 }
 
 fn good(res){
