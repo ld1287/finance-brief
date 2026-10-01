@@ -64,10 +64,11 @@ let news_filters = [
     {id: "fx" label: "外汇"}
 ]
 // D-2: research cards, derived from news_rows by title keywords.
-// research_rows holds {cat, row}; research_idx indexes the filtered list.
+// research_rows holds {cat, row}; research_id is the open card's row.id, so a
+// refresh that reorders research_rows cannot swap the card under the user.
 let research_rows = []
 let research_filter = "all"
-let research_idx = -1
+let research_id = ""
 let research_filters = [
     {id: "all" label: "全部"}
     {id: "policy" label: "政策"}
@@ -396,17 +397,43 @@ fn load_sample(){
 
 // ---------------------------------------------------------------- loaders
 
+// Replace every occurrence of `sep` (String.replace only does the first).
+fn replace_all(s, sep, rep){
+    let parts = s.split(sep)
+    let out = ""
+    for i p in parts {
+        if i > 0 { out = out + rep }
+        out = out + p
+    }
+    out
+}
+
+// Sina escapes slashes as `\/`. Splash's parse_json does not know that escape
+// and drops it together with the next character (`\/stock\/usstock\/c\/` came
+// out as `ockck`), so load_news unescapes the raw body before parsing. This
+// only trims what is left: stray tabs / newlines and outer whitespace.
+fn clean_url(u){
+    let s = "" + u
+    s = replace_all(s, "\t", "")
+    s = replace_all(s, "\n", "")
+    s = replace_all(s, "\r", "")
+    s.trim()
+}
+
+// Stable across refreshes: oid, else url, else title. Never the feed index.
 fn row_news(it, idx){
     let title = "" + get(it, "title", "")
     let media = "" + get(it, "media_name", "")
     let intro = "" + get(it, "intro", "")
-    let url = "" + get(it, "url", "")
+    let url = clean_url(get(it, "url", ""))
     let oid = "" + get(it, "oid", "")
     let ts = 0
     let raw = get(it, "ctime", "")
     if raw != "" { ts = num(raw) }
     let id = "news:" + oid
-    if oid == "" { id = "news:#" + ("" + idx) }
+    if oid == "" {
+        if url != "" { id = "news:u:" + url } else { id = "news:t:" + title }
+    }
     {id: id kind: "news" title: title sub: media metric: "" pct: 0 body: intro url: url ts: ts}
 }
 
@@ -422,7 +449,7 @@ fn load_news(){
         news_err = true
         return
     }
-    let txt = res.body.to_string()
+    let txt = replace_all(res.body.to_string(), "\\/", "/")
     if !starts(txt.trim(), "{") {
         if news_rows.len() == 0 { news_rows = sample_for("news") }
         news_err = true
@@ -664,7 +691,7 @@ fn set_news_filter(f){
 // ---------------------------------------------------------------- research cards (D-2)
 
 fn research_keywords(c){
-    if c == "policy" { return ["央行" "政策" "决议" "公告" "证监会"] }
+    if c == "policy" { return ["央行" "政策" "决议" "证监会" "监管" "国务院"] }
     if c == "earnings" { return ["财报" "业绩" "营收" "净利"] }
     if c == "anomaly" { return ["异动" "拉升" "跳水" "暴涨" "暴跌" "涨停" "跌停"] }
     if c == "macro" { return ["GDP" "CPI" "PPI" "PMI" "失业率" "利率"] }
@@ -714,26 +741,29 @@ fn research_list(){
     out
 }
 
+// nil once a refresh has dropped the card; the detail pane then says so.
 fn research_cur(){
-    let lst = research_list()
-    if research_idx < 0 { return nil }
-    if research_idx >= lst.len() { return nil }
-    lst[research_idx]
+    if research_id == "" { return nil }
+    for e in research_rows { if e.row.id == research_id { return e } }
+    nil
 }
 
 fn open_research(){
-    research_idx = -1
+    research_id = ""
     pick_view("research")
 }
 
 fn set_research_filter(f){
     research_filter = f
-    research_idx = -1
+    research_id = ""
     if ui.research_pane != nil { ui.research_pane.render() }
 }
 
 fn open_research_detail(i){
-    research_idx = i
+    let lst = research_list()
+    if i < 0 { return }
+    if i >= lst.len() { return }
+    research_id = lst[i].row.id
     pick_view("research_detail")
 }
 
@@ -782,6 +812,7 @@ fn refresh(){
     if ui.list != nil { ui.list.render() }
     if view == "launcher" && ui.launcher_pane != nil { ui.launcher_pane.render() }
     if view == "research" && ui.research_pane != nil { ui.research_pane.render() }
+    if view == "research_detail" && ui.research_detail_pane != nil { ui.research_detail_pane.render() }
 }
 
 fn pick(id){
@@ -954,8 +985,10 @@ fn view_launcher(){
     }
 }
 
-// Classify a fav by its id prefix.
-fn fav_kind_of(id){
+// Classify a fav by its id prefix; sample rows carry an extra "sample:".
+fn fav_kind_of(raw){
+    let id = "" + raw
+    if starts(id, "sample:") { id = id.replace("sample:", "") }
     if starts(id, "news:") { return "news" }
     if starts(id, "a:") { return "a" }
     if starts(id, "us:") { return "us" }
@@ -1145,6 +1178,7 @@ fn view_research(){
             View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{left: 8}
                 Label{text: "研究卡" draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 26}}
                 Label{text: "事实层 · 来自要闻 · 共 " + ("" + lst.len()) + " 张" draw_text.color: secondary draw_text.text_style.font_size: 11}
+                Label{text: "AI 生成内容，仅供参考，不构成投资建议" draw_text.color: #xfca5a5 draw_text.text_style.font_size: 10}
             }
         }
         ScrollXView{width: Fill height: 48 flow: Right spacing: 8 padding: Inset{left: 12 right: 12 top: 4 bottom: 8}
@@ -1201,6 +1235,7 @@ fn view_research_detail(){
                 // Fact layer
                 RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 12 bottom: 12 left: 14 right: 14}
                     new_batch: true show_bg: true draw_bg.color: #x14223d draw_bg.border_radius: 12.0
+                    draw_bg.border_size: 1.5 draw_bg.border_color: #x3b82f6
                     Label{text: "事实" draw_text.color: #x3b82f6 draw_text.text_style: theme.font_bold{font_size: 12}}
                     Label{width: Fill text: e.row.title draw_text.color: ink draw_text.text_style: theme.font_bold{font_size: 18}}
                     Label{width: Fill text: source_line(e.row) draw_text.color: secondary draw_text.text_style.font_size: 12}
@@ -1210,8 +1245,8 @@ fn view_research_detail(){
                     if e.row.body == "" {
                         Label{width: Fill text: "（无摘要）" draw_text.color: secondary draw_text.text_style.font_size: 13}
                     }
-                    if e.row.url != "" {
-                        Label{width: Fill text: e.row.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                    if clean_url(e.row.url) != "" {
+                        Label{width: Fill text: clean_url(e.row.url) draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
                     }
                 }
                 // Analysis layer (Phase 2)
@@ -1224,7 +1259,7 @@ fn view_research_detail(){
                 RoundedView{width: Fill height: Fit flow: Down spacing: 8 padding: Inset{top: 12 bottom: 12 left: 14 right: 14}
                     new_batch: true show_bg: true draw_bg.color: #x1c1f26 draw_bg.border_radius: 12.0
                     Label{text: "建议" draw_text.color: #x6b7280 draw_text.text_style: theme.font_bold{font_size: 12}}
-                    Label{width: Fill text: "Phase 2：仅供参考的逻辑推演，不会出现买入/卖出指令（未实现）" draw_text.color: #x9ca3af draw_text.text_style.font_size: 13}
+                    Label{width: Fill text: "Phase 2：仅供参考的逻辑推演，不构成任何交易指令（未实现）" draw_text.color: #x9ca3af draw_text.text_style.font_size: 13}
                 }
                 View{width: Fill height: Fit flow: Right spacing: 8 padding: Inset{top: 4}
                     if is_fav(e.row.id) { BarButton{text: "⭐ 取消收藏" on_click: || toggle_research_fav(e.row)} }
@@ -1285,14 +1320,14 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
                         if detail.kind == "news" {
                             View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{top: 4}
                                 Label{width: Fill text: source_line(detail) draw_text.color: secondary draw_text.text_style.font_size: 12}
-                                if detail.url != "" {
-                                    Label{width: Fill text: detail.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                                if clean_url(detail.url) != "" {
+                                    Label{width: Fill text: clean_url(detail.url) draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
                                 }
                             }
                         }
                         if detail.kind != "news" {
-                            if detail.url != "" {
-                                Label{width: Fill text: detail.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                            if clean_url(detail.url) != "" {
+                                Label{width: Fill text: clean_url(detail.url) draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
                             }
                         }
                         View{width: Fill height: Fit flow: Right spacing: 8 padding: Inset{top: 6}
@@ -1347,23 +1382,23 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
         Label{width: Fill padding: Inset{left: 18 right: 18 bottom: 10} text: "数据来自公开免密接口 · 仅供演示，不构成投资建议" draw_text.color: secondary draw_text.text_style.font_size: 10}
     }
 
-    favs_pane := View{visible: false width: Fill height: Fill flow: Down
+    favs_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_favs_grouped()
     }
 
-    settings_pane := View{visible: false width: Fill height: Fill flow: Down
+    settings_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_settings()
     }
 
-    about_pane := View{visible: false width: Fill height: Fill flow: Down
+    about_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_about()
     }
 
-    research_pane := View{visible: false width: Fill height: Fill flow: Down
+    research_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_research()
     }
 
-    research_detail_pane := View{visible: false width: Fill height: Fill flow: Down
+    research_detail_pane := View{width: Fill height: Fill flow: Down
         on_render: || view_research_detail()
     }
 }
