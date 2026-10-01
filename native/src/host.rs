@@ -20,6 +20,7 @@ impl SplashVm {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Service {
     NewsRefresh,
+    QuotesParseTencent,
     QuotesSnapshot,
     QuotesCandles,
     FavsToggle,
@@ -75,6 +76,12 @@ pub fn handle(s: Service, args: serde_json::Value) -> Promise<Result<serde_json:
                 "fetched_at": 0
             })))
         }
+        Service::QuotesParseTencent => {
+            let body = args.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            let market = args.get("market").and_then(|v| v.as_str()).unwrap_or("a");
+            let rows = crate::parse::parse_tencent_quote(body, market).unwrap_or_default();
+            Promise::resolved(Ok(serde_json::json!({"rows": rows, "fetched_at": 0})))
+        }
         _ => Promise::resolved(Err("not implemented".into())),
     }
 }
@@ -109,5 +116,17 @@ mod tests {
             }),
         );
         let _ = p; // Promise opaque, 只验证不 panic
+    }
+
+    #[test]
+    fn host_quotes_parse_tencent() {
+        let p = handle(
+            Service::QuotesParseTencent,
+            json!({
+                "body": "v_sh600519=\"1~\u{8d35}\u{5dde}\u{8305}\u{53f0}~600519~1888.50~1890.00~1875.20~1895.10~1880.30~-10.50~-0.55\";",
+                "market": "sh"
+            }),
+        );
+        let _ = p;
     }
 }
