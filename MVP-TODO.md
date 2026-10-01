@@ -1,6 +1,6 @@
 # Finance Brief — OctoSense Market MVP TODO
 
-> OctoSense Market (OSM) — Phase 1 MVP 实现计划，落地在 `OctoSense-App-Hub/apps/finance-brief/`。
+> OctoSense Market (OSM) — Phase 1 MVP 实现计划，落地在 `finance-brief/`。
 > 需求来源：`OctoSense Market Agent - MVP产品需求文档.md`（10 章 PRD）。
 > 工作流：调研 → 实现 → 截图 → commit（全部本地，不推远端）。
 
@@ -8,7 +8,7 @@
 
 | # | 问题 | 决策 |
 |---|---|---|
-| Q1 | 在哪扩展？ | `OctoSense-App-Hub/apps/finance-brief/` 直接演进，**不开新目录** |
+| Q1 | 在哪扩展？ | `finance-brief/` 直接演进，**不开新目录** |
 | Q2 | Agent 面板（右侧栏）| **后置**，Phase 2 再说 |
 | Q3 | 数据源 | 保留 4 个免费源；金十/Wind/Binance WS/Glassnode/Polygon **不接** |
 | Q4 | K 线实现 | 先调研 Makepad Shader + Octoscript 60FPS 可行性，再定方案 |
