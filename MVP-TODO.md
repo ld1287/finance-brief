@@ -13,7 +13,9 @@
 | Q3 | 数据源 | 保留 4 个免费源；金十/Wind/Binance WS/Glassnode/Polygon **不接** |
 | Q4 | K 线实现 | 先调研 Makepad Shader + Octoscript 60FPS 可行性，再定方案 |
 | Q5 | 范围 | 只做 **Phase 1** |
-| Q6 | 提交策略 | 本地分支 `finance-brief-app` commit，**不推远端** |
+| Q6 | 提交策略 | 独立仓库 octoOs/finance-brief（main），commit 后推送 origin/main |
+| Q7 | 谁写代码 | sub-agent 实现；主对话负责 TODO / review / 汇报 |
+| Q8 | 改哪个仓库 | octoOs/finance-brief；同步到 OctoSense/apps/finance-brief/bundle/ 以便在 shell 里运行 |
 
 git 作者：仓库发布者（用 `GIT_AUTHOR_*` / `GIT_COMMITTER_*` 环境变量设置）。
 
@@ -48,16 +50,16 @@ git 作者：仓库发布者（用 `GIT_AUTHOR_*` / `GIT_COMMITTER_*` 环境变�
 
 | # | 界面 | 来源 | 任务 | 依赖 | 验收 | 状态 |
 |---|---|---|---|---|---|---|
-| 1 | Launcher（App Card 网格）| 6.1 | I-1 | — | 6 个 tile 网格 + 点击进入对应界面 | TBD |
-| 2 | 新闻简报列表 | 3.1 | I-2 | — | 已有要闻 tab 升级，主题筛选 UI | TBD |
-| 3 | 新闻详情 | 当前 detail | I-3 | I-2 | 加来源链接 UI（一键跳转原始 URL） | TBD |
+| 1 | Launcher（App Card 网格）| 6.1 | I-1 | — | 6 个 tile 网格 + 点击进入对应界面 | done (v0.2.0) |
+| 2 | 新闻简报列表 | 3.1 | I-2 | — | 已有要闻 tab 升级，主题筛选 UI | done (D-1) |
+| 3 | 新闻详情 | 当前 detail | I-3 | I-2 | 加来源链接 UI（一键跳转原始 URL） | done (D-1) |
 | 4 | 研究卡列表 | 3.2 | I-4 | — | 模板：公告 / 财报 / 异动 / 宏观 / 链上 5 类 | TBD |
 | 5 | 研究卡详情（三段式）| 3.2 | I-5 | I-4 | MVP **只做事实层**（蓝色实线）；分析/建议留 TODO 显式占位 | TBD |
 | 6 | K线看盘（OHLC + 周期）| 3.3 | I-6 | R-2 | OHLC 5 柱 + 时间周期（1m/5m/1d）+ 缩放；实现方式由 R-2 定 | TBD |
 | 7 | 行情列表合并（A股/美股/加密/外汇合一）| 当前 5 tab | I-7 | R-1 | 单一列表 + 4 个主题筛选 chip | TBD |
-| 8 | 收藏 / 关注 | 当前收藏 tab | I-8 | — | 可按类型分组；点击进入对应详情 | TBD |
-| 9 | 设置（数据源/主题/推送）| 6.3 + 7 | I-9 | — | 主题切换 + 数据源开关 + 推送时段 | TBD |
-| 10 | 免责声明 | 7.3 | I-10 | — | 首次启动显示 + 设置入口 | TBD |
+| 8 | 收藏 / 关注 | 当前收藏 tab | I-8 | — | 可按类型分组；点击进入对应详情 | done (v0.2.0) |
+| 9 | 设置（数据源/主题/推送）| 6.3 + 7 | I-9 | — | 主题切换 + 数据源开关 + 推送时段 | done (v0.2.0) |
+| 10 | 免责声明 | 7.3 | I-10 | — | 首次启动显示 + 设置入口 | done (v0.2.0) |
 | 11 | 事件流 stub（mock 快讯 + 订单簿）| 3.1 + 3.3 | I-11 | I-2 / I-6 | **条件做**：能跑就实现；不可行写 TODO 占位 | TBD |
 | 12 | 备用槽 | — | — | — | 视余量 | TBD |
 

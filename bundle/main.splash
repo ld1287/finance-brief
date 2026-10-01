@@ -51,6 +51,17 @@ let cached = false
 // "main" shows the existing tabbed UI; favs/settings/about each get their
 // own pane inside the root Overlay.
 let view = "launcher"
+
+// D-1: news topic filter. Applied in rebuild() so `rows` stays the list that
+// open_detail(i) indexes into.
+let news_filter = "all"
+let news_filters = [
+    {id: "all" label: "全部"}
+    {id: "macro" label: "宏观"}
+    {id: "ashare" label: "A股"}
+    {id: "crypto" label: "加密"}
+    {id: "fx" label: "外汇"}
+]
 let settings = {theme: "dark" hosts: {sina: 1 tencent: 1 hyperliquid: 1 frankfurter: 1}}
 
 // `tkey` selects the statement, `tick` is what we show.
@@ -583,8 +594,44 @@ fn load_state(){
     }
 }
 
+fn news_keywords(f){
+    if f == "macro" { return ["央行" "GDP" "CPI" "PMI" "利率"] }
+    if f == "ashare" { return ["A股" "沪" "深" "指数"] }
+    if f == "crypto" { return ["比特币" "BTC" "ETH" "加密"] }
+    if f == "fx" { return ["美元" "汇率" "人民币" "日元"] }
+    []
+}
+
+// Splash strings have no `contains`; `search(p) >= 0` is the documented stand-in.
+fn news_match(title, f){
+    if f == "all" { return true }
+    for kw in news_keywords(f) { if title.search(kw) >= 0 { return true } }
+    false
+}
+
 fn rebuild(){
-    rows = rows_for(tab)
+    let src = rows_for(tab)
+    if tab != "news" || news_filter == "all" {
+        rows = src
+        return
+    }
+    let out = []
+    for r in src { if news_match("" + r.title, news_filter) { out.push(r) } }
+    rows = out
+}
+
+fn set_news_filter(f){
+    news_filter = f
+    detail = nil
+    rebuild()
+    if ui.list != nil { ui.list.render() }
+}
+
+// "来源：<媒体> · <时间>"; the time part is dropped for undated (sample) rows.
+// News rows always carry sub/ts (row_news, sample_for), so read them directly.
+fn source_line(d){
+    let t = hm(d.ts)
+    if t == "" { "来源：" + d.sub } else { "来源：" + d.sub + " · " + t }
 }
 
 fn status_line(){
@@ -1005,8 +1052,18 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
                         if detail.body != "" {
                             Label{width: Fill text: detail.body draw_text.color: #xd7dbe6 draw_text.text_style.font_size: 14}
                         }
-                        if detail.url != "" {
-                            Label{width: Fill text: detail.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                        if detail.kind == "news" {
+                            View{width: Fill height: Fit flow: Down spacing: 2 padding: Inset{top: 4}
+                                Label{width: Fill text: source_line(detail) draw_text.color: secondary draw_text.text_style.font_size: 12}
+                                if detail.url != "" {
+                                    Label{width: Fill text: detail.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                                }
+                            }
+                        }
+                        if detail.kind != "news" {
+                            if detail.url != "" {
+                                Label{width: Fill text: detail.url draw_text.color: #x5b9dff draw_text.text_style.font_size: 12}
+                            }
                         }
                         View{width: Fill height: Fit flow: Right spacing: 8 padding: Inset{top: 6}
                             GhostButton{text: "返回列表" on_click: || close_detail()}
@@ -1015,9 +1072,24 @@ SolidView{width: Fill height: Fill flow: Overlay draw_bg.color: #x0e1117
                     }
                 }
                 if detail == nil {
+                    if tab == "news" {
+                        View{width: Fill height: Fit flow: Right spacing: 8 padding: Inset{bottom: 4}
+                            for f in news_filters {
+                                if f.id == news_filter { ChipOn{text: f.label on_click: || set_news_filter(f.id)} }
+                                else { Chip{text: f.label on_click: || set_news_filter(f.id)} }
+                            }
+                        }
+                    }
                     if rows.len() == 0 {
-                        View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
-                            Label{text: "暂无内容 — 点右上角「刷新」抓取" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                        if tab == "news" && news_filter != "all" {
+                            View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
+                                Label{text: "当前主题暂无匹配新闻" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                            }
+                        }
+                        else {
+                            View{width: Fill height: 220 align: Align{x: 0.5 y: 0.5}
+                                Label{text: "暂无内容 — 点右上角「刷新」抓取" draw_text.color: secondary draw_text.text_style.font_size: 13}
+                            }
                         }
                     }
                     for i in rows.len() {
