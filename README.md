@@ -331,3 +331,115 @@ octosense/check --allow-unsigned <workspace>/OctoSense-App-Hub/apps/finance-brie
 
 数据来自上述公开免密接口，仅用于演示与技术验证，**不构成任何投资建议**。
 各数据源的版权与使用条款归其服务商所有。
+
+## 项目结构
+
+仓库根目录按职责拆成下面几块：
+
+| 路径 | 角色 |
+| --- | --- |
+| `bundle/main.splash` | App 主体逻辑，约 1600 行 Splash / OctoScript（UI、五个标签页、收藏、网络编排全在这） |
+| `bundle/manifest.json` | App 元数据：ID、入口、版本、`network.hosts` 网络白名单 |
+| `bundle/listing.json` | 商店展示信息：标题、简介、截图、分类 |
+| `bundle/assets/` | 图标、字体等静态资源（随 bundle 一起分发） |
+| `native/src/lib.rs` | 22 行，CDylib 入口，只导出 `run()` 一个符号 |
+| `native/src/host.rs` | 238 行，Splash ↔ Rust 桥：注册 `host.fetch` / `host.call` 服务、转发到具体解析器 |
+| `native/src/model.rs` | 52 行，内部数据类型（行情、新闻、收藏条目） |
+| `native/src/parse.rs` | 455 行，五大数据源解析器（新浪 / 腾讯 / Hyperliquid / Frankfurter / Nasdaq） |
+| `native/src/store.rs` | 101 行，收藏 / 设置的 JSON 持久化 |
+| `native/src/synth.rs` | 43 行，无网络时的示例数据合成 |
+| `native/src/sources/` | 各数据源的细分模块（按解析器拆分） |
+| `.agents/` | 给后续 AI / agent 用的 TODO、skills、上下文说明（不进 bundle） |
+| `docs/` | 架构、数据源、调研笔记（`ARCHITECTURE.md`、`DATA-SOURCES.md`、R-1/R-2 等） |
+| `BRIEF.md` / `TODO.md` / `MVP-TODO.md` | 需求、当前进度、路线图 |
+
+Splash 与 Rust 各司其职：网络 IO、解析、持久化全部在 Rust 侧，Splash 只负责
+UI 渲染和编排调用，避免把脆弱的胶水代码塞进 DSL。
+
+## 开发流程
+
+常用命令（都在 `finance-brief/` 根目录执行）：
+
+```sh
+# 1. Rust 单测 —— 解析器、桥接、存储全覆盖
+cargo test -p finance-brief-native
+
+# 2. 把 bundle 打进 hub-archive（生成可被 OctoSense 加载的 app 包）
+cargo build -p octosense-app-hub-app
+
+# 3. 启动 / 调试 OctoSense 桌面壳
+cargo build -p octosense
+```
+
+约定：
+
+- 改完 Rust 解析逻辑，先跑 `cargo test -p finance-brief-native`，native 端
+  测试 **39/39** 全绿再继续。
+- 改完 `bundle/main.splash` 或 `bundle/manifest.json`，跑
+  `cargo build -p octosense-app-hub-app` 确认 bundle 仍能过 hub 门禁
+  （`hub stamp` / `hub check`）。
+- 启动桌面壳前先 `cargo build -p octosense`，避免跑的是旧二进制。
+
+## Splash ↔ Rust 通讯接口
+
+Splash 侧只通过 `host.fetch` / `host.call` 与 Rust 通信，没有别的桥接面。
+当前注册了 **11 个 service**：
+
+| Service | 方向 | 用途 |
+| --- | --- | --- |
+| `synth_candles` | call | 无网络时合成示例 K 线（兜底渲染） |
+| `news.refresh` | call | 拉取并解析新浪财经滚动要闻 |
+| `quotes.parse_tencent` | call | 解析腾讯财经 A 股 / 美股行情（GBK → UTF-8） |
+| `quotes.parse_hyperliquid` | call | 解析 Hyperliquid 加密永续合约行情 |
+| `quotes.parse_frankfurter` | call | 解析 Frankfurter 外汇参考汇率 |
+| `quotes.parse_nasdaq` | call | 解析 Nasdaq 数据源 |
+| `settings.load` | call | 读取持久化设置 |
+| `settings.save` | call | 写入持久化设置 |
+| `favs.toggle` | call | 切换某条目的收藏状态 |
+| `favs.list` | call | 列出当前全部收藏 |
+| `quotes.snapshot` | call | 取当前缓存的行情快照（用于首屏秒开） |
+
+约束：
+
+- `host.fetch` 走 `manifest.json` 的 `network.hosts` 白名单，越权会被 hub 拦截。
+- `host.call` 参数 / 返回值都是 JSON；Rust 侧统一用 `serde_json` 收口。
+- Splash 里所有调用必须显式 `await`，DSL 不提供并发原语。
+
+## Splash DSL 硬约束
+
+OctoScript / Splash 是受限 DSL，写起来有 **5 条核心硬约束**，踩到就编译错
+或运行时崩：
+
+1. **十六进制颜色必须带 `#x` 前缀**（如 `#xff5500`），裸 `#ff5500` 不会被
+   识别为颜色字面量，会按普通标识符报错。
+2. **保留字不能当标识符**：`if` / `for` / `fn` / `on_render` / `host` 等都是
+   关键字，重名直接拒编。
+3. **没有 `substr` / `min` / `sin` 等函数**：字符串切片、数值最小值、三角函数
+   这些都得在 Rust 侧实现后通过 `host.call` 暴露，DSL 自己没有。
+4. **`:=` 只能在 `on_render` 闭包外用**：渲染闭包内赋值会被判定为有副作用而
+   拒绝（避免重渲染时反复触发），需要可变状态就提到外层。
+5. **不支持 `import` / 多文件**：整个 App 必须装在 `bundle/main.splash` 一
+   个文件里，想拆模块只能在 Rust 侧做。
+
+另外几条软的、踩过的坑（开发时常被绊到）：
+
+- 读不存在的属性会**直接报错**，不是返回 `nil`，`if o.k != nil` 拦不住，
+  必须用 `get(o, "k", fallback)`。
+- 字符串拼接用 `..`，不是 `+`；`+` 只对数值生效。
+- 列表字面量是 `[a, b, c]`，没有 `array(…)` 构造函数。
+
+## 提交与分支管理
+
+本仓库由多个 AI agent 协作开发，提交走统一流程：
+
+- **主 AI 自己不 commit**：负责实现 / 改代码 / 改文档的 agent 一律不直接
+  `git commit`，改完即停下。
+- **由 commit agent 统一 commit**：专门的 commit agent 收集变更、按
+  Conventional Commits 风格生成 message、统一落到分支上。
+- **不动全局 `user.name` / `user.email`**：所有 commit 都走仓库级
+  `git config user.name` / `user.email`，绝不去碰 `~/.gitconfig`。
+- **不 push**：agent 不执行 `git push`，是否推送由人在本地或服务端触发。
+- **分支**：功能 / 修复在各自的 feature / fix 分支上推进，合并走 PR / 评审，
+  不直接往主分支 force-push。
+
+这样能让多 agent 并行开发时，提交历史仍可追溯、不会互相覆盖。
