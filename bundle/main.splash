@@ -1312,22 +1312,22 @@ fn view_quotes(){
 
         View{width: Fill height: 44 flow: Right spacing: 6 padding: Inset{left: 12 right: 12 top: 4 bottom: 8}
             if quote_pane_tab == "a" { ChipOn{text: "A股" on_click: || pick_quote_pane("a")} }
-            if quote_pane_tab != "a" { Chip{text: "A股" on_click: || pick_quote_pane("a")} }
+            else { Chip{text: "A股" on_click: || pick_quote_pane("a")} }
             if quote_pane_tab == "us" { ChipOn{text: "美股" on_click: || pick_quote_pane("us")} }
-            if quote_pane_tab != "us" { Chip{text: "美股" on_click: || pick_quote_pane("us")} }
+            else { Chip{text: "美股" on_click: || pick_quote_pane("us")} }
             if quote_pane_tab == "onchain" { ChipOn{text: "链上" on_click: || pick_quote_pane("onchain")} }
-            if quote_pane_tab != "onchain" { Chip{text: "链上" on_click: || pick_quote_pane("onchain")} }
+            else { Chip{text: "链上" on_click: || pick_quote_pane("onchain")} }
         }
 
         View{width: Fill height: Fill flow: Down spacing: 6 padding: Inset{left: 12 right: 12 bottom: 24}
             Label{text: "周期 · " + quote_pane_period draw_text.color: secondary draw_text.text_style.font_size: 12}
             View{width: Fill height: 32 flow: Right spacing: 4
                 if quote_pane_period == "1m" { ChipOn{text: "1m" on_click: || switch_quote_pane_period("1m")} }
-                if quote_pane_period != "1m" { Chip{text: "1m" on_click: || switch_quote_pane_period("1m")} }
+                else { Chip{text: "1m" on_click: || switch_quote_pane_period("1m")} }
                 if quote_pane_period == "5m" { ChipOn{text: "5m" on_click: || switch_quote_pane_period("5m")} }
-                if quote_pane_period != "5m" { Chip{text: "5m" on_click: || switch_quote_pane_period("5m")} }
+                else { Chip{text: "5m" on_click: || switch_quote_pane_period("5m")} }
                 if quote_pane_period == "1d" { ChipOn{text: "1d" on_click: || switch_quote_pane_period("1d")} }
-                if quote_pane_period != "1d" { Chip{text: "1d" on_click: || switch_quote_pane_period("1d")} }
+                else { Chip{text: "1d" on_click: || switch_quote_pane_period("1d")} }
             }
             CandlestickChart{
                 width: Fill height: Fill
