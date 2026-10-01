@@ -481,10 +481,9 @@ fn row_news(it, idx){
     {id: id kind: "news" title: title sub: media metric: "" pct: 0 body: intro url: url ts: ts}
 }
 
-// G2 migration: HTTP is now issued through the low-level net.http_request
-// event surface so the body parser can later be swapped for a native
-// host.call. Parsing is still a local fallback (parse_sina_fallback / sina_tag
-// below) - the next G-agent turns it into host.call("news.parse", {body: ...}).
+// G8: native 真接 host.fetch("news.refresh")。splash 仍 net.http_request
+// 拿 body (中间态), native parse_sina_news 处理后返回 {rows, fetched_at}。
+// 真解耦 (splash 不再 fetch body) 待 R-3。
 fn load_news(){
     if host_val("sina") == 0 {
         if news_rows.len() == 0 { news_rows = sample_for("news") }
@@ -500,9 +499,14 @@ fn load_news(){
                 p.resolve(nil)
                 return
             }
-            // TODO: native parse - let parsed = host.call("news.parse", {body: res.body})
-            // 临时 fallback: 直接把 body 作为 news_rows (splash 不在 parse)
-            news_rows = parse_sina_fallback(res.body)
+            let parsed = mod.host.fetch("news.refresh", {body: res.body limit: 20})
+            let rows = get(parsed, "rows", nil)
+            if rows == nil {
+                news_err = true
+                p.resolve(nil)
+                return
+            }
+            news_rows = rows
             news_err = false
             p.resolve(p)
         }
@@ -512,38 +516,6 @@ fn load_news(){
         }
     }
     p
-}
-
-// 临时 fallback: splash 内的极简 sina parse（用字符串扫描）
-fn parse_sina_fallback(body){
-    let out = []
-    let rest = body
-    while true {
-        let s = rest.find("<" + "item" + ">")
-        if s == nil { break }
-        let after = rest[s + 6:]
-        let e = after.find("</" + "item" + ">")
-        if e == nil { break }
-        let item = after[:e]
-        let title = sina_tag(item, "title")
-        let link = sina_tag(item, "link")
-        let source = sina_tag(item, "media_name")
-        let intro = sina_tag(item, "intro")
-        out.push({id: "news:" + ("" + out.len()) title: title url: link source: source ts: 0 body: intro})
-        rest = after[e + 7:]
-    }
-    return out
-}
-fn sina_tag(item, tag){
-    let open = "<" + tag + ">"
-    let close = "</" + tag + ">"
-    let s = item.find(open)
-    if s == nil { return "" }
-    let after = item[s + open.len():]
-    let e = after.find(close)
-    if e == nil { return "" }
-    let raw = after[:e]
-    return raw.replace_all("&amp;", "&").replace_all("&lt;", "<").replace_all("&gt;", ">").replace_all("&quot;", "\"")
 }
 
 // Tencent quote feed: `v_<code>="…~name~code~current~prev~open~…~time~chg~pct~high~low~…";`
