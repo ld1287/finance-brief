@@ -211,26 +211,28 @@ fn json_root(txt, open){
 
 // ---------------------------------------------------------------- settings I/O (v0.2.0)
 
+// T3c: 真接 mod.host.fetch("settings.load") — native::host handle
+// SettingsLoad 路由到 store::load_settings。native 返回 {} (missing 时)
+// 或 saved dict (existing 时), splash 不直接 fs.read.
 fn load_settings(){
-    if fs.exists("settings.json") {
-        let v = json_root(fs.read("settings.json"), "{")
-        if v != nil {
-            let t = get(v, "theme", "")
-            if t == "dark" || t == "light" || t == "auto" { settings.theme = t }
-            let h = get(v, "hosts", nil)
-            if h != nil {
-                if get(h, "sina", 0) == 1 { settings.hosts.sina = 1 } else { settings.hosts.sina = 0 }
-                if get(h, "tencent", 0) == 1 { settings.hosts.tencent = 1 } else { settings.hosts.tencent = 0 }
-                if get(h, "hyperliquid", 0) == 1 { settings.hosts.hyperliquid = 1 } else { settings.hosts.hyperliquid = 0 }
-                if get(h, "frankfurter", 0) == 1 { settings.hosts.frankfurter = 1 } else { settings.hosts.frankfurter = 0 }
-                if get(h, "nasdaq", 0) == 1 { settings.hosts.nasdaq = 1 } else { settings.hosts.nasdaq = 0 }
-            }
-        }
+    let v = mod.host.fetch("settings.load", {})
+    let t = get(v, "theme", "")
+    if t == "dark" || t == "light" || t == "auto" { settings.theme = t }
+    let h = get(v, "hosts", nil)
+    if h != nil {
+        if get(h, "sina", 0) == 1 { settings.hosts.sina = 1 } else { settings.hosts.sina = 0 }
+        if get(h, "tencent", 0) == 1 { settings.hosts.tencent = 1 } else { settings.hosts.tencent = 0 }
+        if get(h, "hyperliquid", 0) == 1 { settings.hosts.hyperliquid = 1 } else { settings.hosts.hyperliquid = 0 }
+        if get(h, "frankfurter", 0) == 1 { settings.hosts.frankfurter = 1 } else { settings.hosts.frankfurter = 0 }
+        if get(h, "nasdaq", 0) == 1 { settings.hosts.nasdaq = 1 } else { settings.hosts.nasdaq = 0 }
     }
 }
 
+// T3c: 真接 mod.host.call("settings.save") — native::host handle
+// SettingsSave 路由到 store::save_settings(patch)。fire-and-forget
+// (settings 是顶 let, toggle_setting/set_theme 不接 promise 返回).
 fn save_settings(){
-    fs.write("settings.json", settings.to_json())
+    mod.host.call("settings.save", {patch: settings})
 }
 
 fn host_val(name){
