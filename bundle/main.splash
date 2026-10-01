@@ -178,25 +178,11 @@ fn strip_comma(s){
     return replace_all("" + s, ",", "")
 }
 
-// Native bridge: synth.candles — 生成 N 根 demo OHLC 蜡烛 (MVP placeholder).
+// Native bridge: synth.candles — generate N 根 demo OHLC 蜡烛 (MVP placeholder).
+// 真接 host.fetch("quotes.candles") —— native/src/host.rs::handle QuotesCandles 路由
+// 到 synth::synth_candles(n)，返回 {candles: [Candle]}，fetch 类型（同步）。
 fn synth_candles(n){
-    // TODO: 等 native 接管 ink_paint, 此处仅返回。
-    let out = []
-    let p = 100.0
-    let patterns = [1.0, 0.5, -0.3, -1.0, -0.5, 0.3, 0.8, -0.2]
-    let i = 0
-    while i < n {
-        let idx = i - floor(i / 8) * 8
-        let drift = patterns[idx]
-        let o = p
-        let c = p + drift
-        let h = max(o, c) + 0.3
-        let l = min(o, c) - 0.3
-        out.push({time: (i * 1.0) open: o high: h low: l close: c volume: 1000.0})
-        p = c
-        i = i + 1
-    }
-    return out
+    return mod.host.fetch("quotes.candles", {count: n})
 }
 
 fn hm(ts){
