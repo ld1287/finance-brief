@@ -38,6 +38,7 @@ echo '{}' > "$DEST/page.data.json"
 cp -r "$APP/bundle/schema" "$DEST/"
 cp "$APP/bundle/capabilities.toml" "$DEST/"
 cp "$APP/bundle/workflow.octoscript" "$DEST/"
+cp -r "$APP/bundle/kit" "$DEST/"
 # Launcher art: the packer looks for icon.svg/icon.png at the bundle root.
 cp "$APP/bundle/assets/icon.svg" "$DEST/icon.svg"
 # listing.json: rewrite the icon path to the root copy (the store listing
