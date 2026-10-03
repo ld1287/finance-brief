@@ -28,7 +28,16 @@ if [ ! -f "$OCTO/Cargo.toml" ]; then
 fi
 
 mkdir -p "$DEST" "$DEST/screenshots"
-cp "$APP/bundle/main.splash" "$DEST/"
+# Page format bundle: 12 *.card screens + page.card entry + page.data.json + schema/caps/workflow.
+# The runtime looks up `card_source` = page.card; without it the install falls back to the stock
+# 809-byte splash. The packer walks the bundle dir recursively, so every referenced asset must
+# live here.
+cp "$APP/bundle"/*.card "$DEST/"
+cp "$APP/bundle/launcher.card" "$DEST/page.card"
+echo '{}' > "$DEST/page.data.json"
+cp -r "$APP/bundle/schema" "$DEST/"
+cp "$APP/bundle/capabilities.toml" "$DEST/"
+cp "$APP/bundle/workflow.octoscript" "$DEST/"
 # Launcher art: the packer looks for icon.svg/icon.png at the bundle root.
 cp "$APP/bundle/assets/icon.svg" "$DEST/icon.svg"
 # listing.json: rewrite the icon path to the root copy (the store listing
