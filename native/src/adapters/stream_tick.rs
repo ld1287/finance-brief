@@ -1,5 +1,5 @@
 //! Stream tick adapter — backs the v2 `stream.tick` capability declared in
-//! `finance-brief/bundle/capabilities.toml` §12.
+//! `finance-brief/native/capabilities.toml` §12.
 //!
 //! ## Input / output
 //!

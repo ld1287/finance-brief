@@ -1,5 +1,5 @@
 //! Streaming subscription controls — backs three v2 capabilities declared in
-//! `finance-brief/bundle/capabilities.toml` §9-13:
+//! `finance-brief/native/capabilities.toml` §9-13:
 //!
 //! - `stream.subscribe`     — register a set of symbols to be polled
 //! - `stream.unsubscribe`   — stop receiving ticks for some / all symbols

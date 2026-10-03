@@ -1,5 +1,5 @@
 //! Datasource health rollup — backs the v2 `datasource.status` capability
-//! declared in `finance-brief/bundle/capabilities.toml` §13.
+//! declared in `finance-brief/native/capabilities.toml` §13.
 //!
 //! ## Input / output
 //!

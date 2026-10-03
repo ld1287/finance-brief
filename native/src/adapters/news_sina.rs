@@ -1,6 +1,6 @@
 //! Sina (新浪财经) 滚动新闻 adapter.
 //!
-//! Backs two `capability` rows in `bundle/capabilities.toml`:
+//! Backs two `capability` rows in `native/capabilities.toml`:
 //!   - `news.refresh` — full feed pull (cache TTL 300s)
 //!   - `news.read`    — single item lookup by `key` (cache TTL 600s)
 //!

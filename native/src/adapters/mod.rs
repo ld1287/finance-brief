@@ -1,7 +1,7 @@
 //! v2 adapters for finance-brief (per Q-C: B + Q-R1: B).
 //!
 //! Each submodule registers one `capability` declared in
-//! `finance-brief/bundle/capabilities.toml`:
+//! `finance-brief/native/capabilities.toml`:
 //!
 //! - `news_sina`            → `news.refresh`, `news.read`
 //! - `quote_tencent`        → `quote.snapshot` (tab=a / hk)
