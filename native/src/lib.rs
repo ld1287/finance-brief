@@ -3,6 +3,7 @@
 //! Wired up to splash via host.call / host.fetch (see docs/ARCHITECTURE.md §4).
 
 pub mod adapters;
+pub mod cache;
 pub mod host;
 pub mod model;
 pub mod parse;

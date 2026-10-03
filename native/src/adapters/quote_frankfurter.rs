@@ -83,6 +83,7 @@ async fn handle(args: Value) -> Result<Value, String> {
     }
 
     let ts = now_ts();
+    let now_u = ts as u64;
     let mut rows = Vec::with_capacity(pairs.len());
 
     // Group by base to amortise HTTP calls: one GET per unique base, then
@@ -101,16 +102,26 @@ async fn handle(args: Value) -> Result<Value, String> {
     }
 
     for (base, quotes) in by_base {
-        let url = format!(
-            "https://api.frankfurter.dev/v1/latest?from={base}&to={}",
-            quotes.join(",")
-        );
-        let body: Value = reqwest::get(&url)
-            .await
-            .map_err(|e| format!("frankfurter GET {base} failed: {e}"))?
-            .json()
-            .await
-            .map_err(|e| format!("frankfurter body parse failed: {e}"))?;
+        let cache_key = format!("quote_frankfurter:latest:{base}");
+
+        let body: Value = match crate::cache::load_cached::<Value>(&cache_key, now_u)? {
+            Some(v) => v,
+            None => {
+                let url = format!(
+                    "https://api.frankfurter.dev/v1/latest?from={base}&to={}",
+                    quotes.join(",")
+                );
+                let v: Value = reqwest::get(&url)
+                    .await
+                    .map_err(|e| format!("frankfurter GET {base} failed: {e}"))?
+                    .json()
+                    .await
+                    .map_err(|e| format!("frankfurter body parse failed: {e}"))?;
+                crate::cache::store_cached(&cache_key, &v, 3600, now_u)?;
+                v
+            }
+        };
+
         let rates = body
             .get("rates")
             .and_then(|v| v.as_object())

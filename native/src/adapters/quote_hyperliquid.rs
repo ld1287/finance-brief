@@ -75,12 +75,35 @@ async fn handle(args: Value) -> Result<Value, String> {
         return Err("symbols must be non-empty".into());
     }
 
-    let mids = fetch_all_mids().await?;
-    let ts = now_ts();
-    let mut rows = Vec::with_capacity(symbols.len());
-    for sym in symbols.iter().filter_map(|v| v.as_str()) {
+    let mut syms: Vec<String> = symbols
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    syms.sort();
+    let filter_key = format!("quote_hyperliquid:filter:{}", syms.join(","));
+    let allmids_key = "quote_hyperliquid:allmids".to_string();
+
+    let now = now_ts() as u64;
+
+    // First try to short-circuit on the filtered slice cache (already-built rows).
+    if let Some(envelope) = crate::cache::load_cached::<Value>(&filter_key, now)? {
+        return Ok(envelope);
+    }
+
+    // Reuse the raw allMids cache when available, else fetch.
+    let mids: Value = match crate::cache::load_cached::<Value>(&allmids_key, now)? {
+        Some(v) => v,
+        None => {
+            let v = fetch_all_mids().await?;
+            crate::cache::store_cached(&allmids_key, &v, 5, now)?;
+            v
+        }
+    };
+
+    let mut rows = Vec::with_capacity(syms.len());
+    for sym in syms {
         let last = mids
-            .get(sym)
+            .get(&sym)
             .and_then(|v| v.as_f64())
             .ok_or_else(|| format!("hyperliquid has no mid for {sym}"))?;
         rows.push(json!({
@@ -90,10 +113,12 @@ async fn handle(args: Value) -> Result<Value, String> {
             "bid": last,
             "ask": last,
             "volume": 0,
-            "ts": ts,
+            "ts": now,
         }));
     }
-    Ok(json!({ "rows": rows, "fetched_at": ts }))
+    let envelope = json!({ "rows": rows, "fetched_at": now });
+    crate::cache::store_cached(&filter_key, &envelope, 5, now)?;
+    Ok(envelope)
 }
 
 /// POST `{"type":"allMids"}` and parse the flat mids map.

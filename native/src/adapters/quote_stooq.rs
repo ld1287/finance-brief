@@ -76,14 +76,20 @@ async fn handle(args: Value) -> Result<Value, String> {
         return Err("symbols must be non-empty".into());
     }
 
-    // Stooq wants `.us` suffix per symbol, lowercase. Strip any user suffix
-    // first to avoid `aapl.us.us`.
-    let normalised: Vec<String> = symbols
+    // Normalise the same way the upstream URL builder does, then sort.
+    let mut normalised: Vec<String> = symbols
         .iter()
         .filter_map(|v| v.as_str())
         .map(|s| s.trim_end_matches(".us").to_lowercase())
         .map(|s| format!("{s}.us"))
         .collect();
+    normalised.sort();
+    let cache_key = format!("quote_stooq:{tab}:{}", normalised.join(","));
+
+    let now = now_ts() as u64;
+    if let Some(envelope) = crate::cache::load_cached::<Value>(&cache_key, now)? {
+        return Ok(envelope);
+    }
 
     let joined = normalised.join(",");
     // `f=sd2t2ohlcv` ⇒ Symbol, Date, Time, Open, High, Low, Close, Volume.
@@ -98,7 +104,9 @@ async fn handle(args: Value) -> Result<Value, String> {
         .map_err(|e| format!("stooq body read failed: {e}"))?;
 
     let rows = parse_stooq_csv(&body)?;
-    Ok(json!({ "rows": rows, "fetched_at": now_ts() }))
+    let envelope = json!({ "rows": rows, "fetched_at": now });
+    crate::cache::store_cached(&cache_key, &envelope, 5, now)?;
+    Ok(envelope)
 }
 
 /// Parse Stooq's CSV (header + one row per symbol). Tolerant of:

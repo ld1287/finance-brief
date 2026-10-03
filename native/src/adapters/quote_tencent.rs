@@ -72,12 +72,20 @@ async fn handle(args: Value) -> Result<Value, String> {
         return Err("symbols must be non-empty".into());
     }
 
-    let joined = symbols
+    let mut syms: Vec<String> = symbols
         .iter()
-        .filter_map(|v| v.as_str())
-        .collect::<Vec<_>>()
-        .join(",");
-    let url = format!("https://qt.gtimg.cn/q={}", joined);
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    syms.sort();
+    let cache_key = format!("quote_tencent:{tab}:{}", syms.join(","));
+
+    let now = now_ts() as u64;
+    if let Some(envelope) = crate::cache::load_cached::<Value>(&cache_key, now)? {
+        return Ok(envelope);
+    }
+
+    let joined = syms.join(",");
+    let url = format!("https://qt.gtimg.cn/q={joined}");
 
     let body = reqwest::get(&url)
         .await
@@ -87,7 +95,9 @@ async fn handle(args: Value) -> Result<Value, String> {
         .map_err(|e| format!("tencent body read failed: {e}"))?;
 
     let rows = parse_tencent(&body, tab)?;
-    Ok(json!({ "rows": rows, "fetched_at": now_ts() }))
+    let envelope = json!({ "rows": rows, "fetched_at": now });
+    crate::cache::store_cached(&cache_key, &envelope, 5, now)?;
+    Ok(envelope)
 }
 
 /// Split the single-line response into one `QuoteRow` per `v_<sym>="...";`

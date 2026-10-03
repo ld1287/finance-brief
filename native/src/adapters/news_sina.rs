@@ -64,10 +64,41 @@ async fn handle(args: Value) -> Result<Value, String> {
     let key = args.get("key").and_then(|v| v.as_str());
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
 
-    let items = fetch_news(limit).await?;
+    let now = now_ts() as u64;
+    let cache_key = format!("news_sina:refresh:{limit}");
 
+    // Cache stores the full envelope {items, fetched_at}.
+    if let Some(envelope) = crate::cache::load_cached::<Value>(&cache_key, now)? {
+        let items = envelope
+            .get("items")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let payload = if let Some(k) = key {
+            // news.read: filter the cached set to the requested key.
+            match items.into_iter().find(|it| it["key"].as_str() == Some(k)) {
+                Some(it) => vec![it],
+                None => return Err(format!("news key not found: {k}")),
+            }
+        } else {
+            items
+        };
+        return Ok(json!({
+            "items": payload,
+            "fetched_at": envelope.get("fetched_at").cloned().unwrap_or(json!(now)),
+        }));
+    }
+
+    // Cache miss — fetch + cache the full envelope.
+    let items = fetch_news(limit).await?;
+    let envelope = json!({
+        "items": items,
+        "fetched_at": now,
+    });
+    crate::cache::store_cached(&cache_key, &envelope, 300, now)?;
+
+    // news.read: filter the refreshed set to the requested key.
     let payload = if let Some(k) = key {
-        // news.read: filter the refreshed set to the requested key.
         match items.into_iter().find(|it| it["key"].as_str() == Some(k)) {
             Some(it) => vec![it],
             None => return Err(format!("news key not found: {k}")),
@@ -78,7 +109,7 @@ async fn handle(args: Value) -> Result<Value, String> {
 
     Ok(json!({
         "items": payload,
-        "fetched_at": now_ts(),
+        "fetched_at": now,
     }))
 }
 
