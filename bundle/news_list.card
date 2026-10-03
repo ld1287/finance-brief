@@ -20,8 +20,12 @@ copy lead_lbl { class: vocabulary, en: "LEAD",              zh: "焦点" }
 copy pts      { class: vocabulary, en: "pts",               zh: "分" }
 copy cmts     { class: vocabulary, en: "comments",          zh: "评论" }
 copy by       { class: vocabulary, en: "by",                zh: "作者" }
+copy back     { class: vocabulary, en: "Back",              zh: "返回" }
 
-view root  Surface(pad: .page) { stream }
+view root  Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
+  stream
+}
 
 view stream  Col {
                when feed.$state == .pending { TextBody(text: copy.loading) }

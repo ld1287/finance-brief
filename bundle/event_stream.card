@@ -35,8 +35,10 @@ copy loading      { class: vocabulary, en: "Fetching stream…",                
 copy offline      { class: vocabulary, en: "Can't reach the stream service",            zh: "无法获取事件流" }
 copy empty        { class: vocabulary, en: "No events in this category",                 zh: "该分类暂无事件" }
 copy summary_lbl  { class: vocabulary, en: "Summary",                                   zh: "摘要" }
+copy back         { class: vocabulary, en: "Back",                                      zh: "返回" }
 
 view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
   header
   status
   filters

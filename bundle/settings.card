@@ -48,8 +48,10 @@ copy pw_value        { class: vocabulary, en: "09:00–18:00 Asia/Shanghai",    
 copy version         { class: vocabulary, en: "finance-brief v0.3.0",                     zh: "finance-brief v0.3.0" }
 copy reset_chip      { class: vocabulary, en: "Reset to defaults",                        zh: "恢复默认设置" }
 copy disclaimer_chip { class: vocabulary, en: "Disclaimer →",                             zh: "免责声明 →" }
+copy back            { class: vocabulary, en: "Back",                                     zh: "返回" }
 
 view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
   header
   theme_section
   frequency_section

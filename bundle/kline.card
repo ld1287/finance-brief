@@ -27,8 +27,10 @@ copy lbl_vol    { class: vocabulary, en: "Volume",                      zh: "成
 copy lbl_mktcap { class: vocabulary, en: "Mkt Cap",                     zh: "市值" }
 copy lbl_pe     { class: vocabulary, en: "P/E",                         zh: "市盈率" }
 copy footer     { class: vocabulary, en: "Data source: 5 sources",      zh: "数据源: 5 个" }
+copy back        { class: vocabulary, en: "Back",                        zh: "返回" }
 
 view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
   when kline_symbol == "" { empty }
   when kline_symbol != "" { detail }
 }

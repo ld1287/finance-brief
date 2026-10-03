@@ -22,8 +22,10 @@ copy lbl_vol      { class: vocabulary, en: "成交量",         zh: "成交量" 
 copy btn_remove   { class: vocabulary, en: "移除",           zh: "移除" }
 copy btn_add      { class: vocabulary, en: "+ 添加",         zh: "+ 添加" }
 copy empty_hint   { class: vocabulary, en: "暂无收藏",       zh: "暂无收藏" }
+copy back         { class: vocabulary, en: "Back",           zh: "返回" }
 
 view root  Surface(pad: .page) {
+             Chip(text: copy.back, on_tap: back)
              Row(align: .center, gap: 10, on_tap: back) { TextRow(text: copy.back_lbl) }
              TextTitle(text: copy.hdr)
 

@@ -28,8 +28,10 @@ copy offline      { class: vocabulary, en: "Can't reach the research service",  
 copy empty        { class: vocabulary, en: "No research for this topic",                zh: "该主题暂无研究" }
 copy pts          { class: vocabulary, en: "pts",                                       zh: "分" }
 copy footer       { class: vocabulary, en: "Last synced",                               zh: "最后同步" }
+copy back         { class: vocabulary, en: "Back",                                       zh: "返回" }
 
 view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
   header
   topic_chips
   status

@@ -15,8 +15,12 @@ copy back_lbl   { class: vocabulary, en: "‹ 新闻简报",    zh: "‹ 新闻�
 copy lbl_pts    { class: vocabulary, en: "分数",          zh: "分数" }
 copy lbl_cmts   { class: vocabulary, en: "评论",          zh: "评论" }
 copy lbl_by     { class: vocabulary, en: "作者",          zh: "作者" }
+copy back       { class: vocabulary, en: "Back",         zh: "返回" }
 
-view root  Surface(pad: .page) { detail }
+view root  Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
+  detail
+}
 
 view detail  Col {
                Row(align: .center, gap: 10, on_tap: back) {

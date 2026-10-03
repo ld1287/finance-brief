@@ -25,8 +25,12 @@ copy picks_hd     { class: vocabulary, en: "Top picks",          zh: "重点" }
 copy evidence_hd  { class: vocabulary, en: "Evidence",           zh: "依据" }
 copy loading      { class: vocabulary, en: "Fetching detail…",    zh: "正在获取详情…" }
 copy offline      { class: vocabulary, en: "Can't reach the research service", zh: "无法获取研究" }
+copy back         { class: vocabulary, en: "Back",                                  zh: "返回" }
 
-view root Surface(pad: .page) { detail }
+view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
+  detail
+}
 
 view detail Col {
   Row(align: .center, gap: 10) {

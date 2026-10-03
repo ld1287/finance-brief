@@ -38,8 +38,10 @@ copy loading        { class: vocabulary, en: "Fetching status…",              
 copy offline        { class: vocabulary, en: "Can't reach the status service",               zh: "无法获取状态" }
 copy empty          { class: vocabulary, en: "No data source status available",              zh: "暂无数据源状态" }
 copy errors_hd      { class: vocabulary, en: "Errors",                                        zh: "故障明细" }
+copy back           { class: vocabulary, en: "Back",                                           zh: "返回" }
 
 view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
   header
   meta
   table_header

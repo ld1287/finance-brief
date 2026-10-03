@@ -22,8 +22,10 @@ copy version         { class: vocabulary, en: "finance-brief v0.3.0", zh: "finan
 copy sources         { class: vocabulary, en: "Sources: sina / tencent / stooq / hyperliquid / frankfurter", zh: "数据源: 新浪 / 腾讯 / Stooq / Hyperliquid / Frankfurter" }
 copy accept_chip     { class: vocabulary, en: "Accept & continue", zh: "同意并继续" }
 copy decline_chip    { class: vocabulary, en: "Decline",            zh: "不同意" }
+copy back            { class: vocabulary, en: "Back",               zh: "返回" }
 
 view root Surface(pad: .page) {
+  Chip(text: copy.back, on_tap: back)
   header
   intro_section
   advice_section
