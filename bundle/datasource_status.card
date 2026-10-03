@@ -2,11 +2,11 @@
 # level:   L0
 # model:   datasource_status
 
-source sina_status    sys.news_status(data_source: "sina",        fields: [status, message, count])
-source tencent_status sys.news_status(data_source: "tencent",     fields: [status, message, count])
-source stooq_status   sys.news_status(data_source: "stooq",       fields: [status, message, count])
-source hyper_status   sys.news_status(data_source: "hyperliquid", fields: [status, message, count])
-source frank_status   sys.news_status(data_source: "frankfurter", fields: [status, message, count])
+source sina_status    sys.news_status(query: "sina",        fields: [status, message, count])
+source tencent_status sys.news_status(query: "tencent",     fields: [status, message, count])
+source stooq_status   sys.news_status(query: "stooq",       fields: [status, message, count])
+source hyper_status   sys.news_status(query: "hyperliquid", fields: [status, message, count])
+source frank_status   sys.news_status(query: "frankfurter", fields: [status, message, count])
 source env.locale     sys.locale()
 
 state healthy_count { shape: number, initial: 0 }                                              # host L1 computes and writes
@@ -61,7 +61,7 @@ view meta Row(gap: 8) {
   TextCaption(text: copy.refresh_at_lbl)
   TextCaption(text: last_refresh)
   TextCaption(text: copy.healthy_lbl)
-  TextCaption(value: healthy_count, format: .compact)
+  TextCaption(value: healthy_count)
   TextCaption(text: "/ 5")
 }
 
@@ -77,7 +77,7 @@ view sina_card Row(align: .center, gap: 6) {
   TextRow(text: copy.sina_kind,          width: .label)
   TextRow(text: sina_status.status,      width: .label)
   TextCaption(text: sina_status.message, width: .fill)
-  TextCaption(value: sina_status.count,  format: .compact)
+  TextCaption(value: sina_status.count)
 }
 
 view tencent_card Row(align: .center, gap: 6) {
@@ -85,7 +85,7 @@ view tencent_card Row(align: .center, gap: 6) {
   TextRow(text: copy.tencent_kind,       width: .label)
   TextRow(text: tencent_status.status,   width: .label)
   TextCaption(text: tencent_status.message, width: .fill)
-  TextCaption(value: tencent_status.count,  format: .compact)
+  TextCaption(value: tencent_status.count)
 }
 
 view stooq_card Row(align: .center, gap: 6) {
@@ -93,7 +93,7 @@ view stooq_card Row(align: .center, gap: 6) {
   TextRow(text: copy.stooq_kind,         width: .label)
   TextRow(text: stooq_status.status,     width: .label)
   TextCaption(text: stooq_status.message, width: .fill)
-  TextCaption(value: stooq_status.count,  format: .compact)
+  TextCaption(value: stooq_status.count)
 }
 
 view hyper_card Row(align: .center, gap: 6) {
@@ -101,7 +101,7 @@ view hyper_card Row(align: .center, gap: 6) {
   TextRow(text: copy.hyper_kind,         width: .label)
   TextRow(text: hyper_status.status,     width: .label)
   TextCaption(text: hyper_status.message, width: .fill)
-  TextCaption(value: hyper_status.count,  format: .compact)
+  TextCaption(value: hyper_status.count)
 }
 
 view frank_card Row(align: .center, gap: 6) {
@@ -109,7 +109,7 @@ view frank_card Row(align: .center, gap: 6) {
   TextRow(text: copy.frank_kind,         width: .label)
   TextRow(text: frank_status.status,     width: .label)
   TextCaption(text: frank_status.message, width: .fill)
-  TextCaption(value: frank_status.count,  format: .compact)
+  TextCaption(value: frank_status.count)
 }
 
 view errors Col {
