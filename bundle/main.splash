@@ -20,6 +20,31 @@ let colors = {
     accent_h:    #x0a84ff
 }
 
+// ── data state (P0: wired to host.call) ────────────────────────
+// Each screen has data_X (host.call result) + loaded_X (one-shot flag)
+// to trigger first-load on screen entry without async/await.
+let data_news_list         = []
+let data_news_detail       = {}
+let data_research_list     = []
+let data_research_detail   = {}
+let data_kline             = {candles: [], symbol: "sh000001", period: "1d"}
+let data_favorites         = []
+let data_settings          = {theme: "light", freq_ms: 5000, font_size: "md"}
+let data_event_stream      = []
+let data_datasource_status = []
+let data_disclaimer        = {license: "Apache-2.0", sources: "sina/tencent/hyperliquid/frankfurter/stooq"}
+
+let loaded_news_list         = false
+let loaded_news_detail       = false
+let loaded_research_list     = false
+let loaded_research_detail   = false
+let loaded_kline             = false
+let loaded_favorites         = false
+let loaded_settings          = false
+let loaded_event_stream      = false
+let loaded_datasource_status = false
+let loaded_disclaimer        = false
+
 // ── nav ─────────────────────────────────────────────────────────
 let nav = {
     current: "launcher"
@@ -135,7 +160,7 @@ fn render_header(){
 }
 
 // ── launcher tile ──────────────────────────────────────────────
-fn render_tile(label, screen_name){
+fn render_tile(id_name, label, screen_name){
     ButtonFlat{width: Fill height: 96 on_click: || nav.push(screen_name)
         draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
         draw_text +: {color: colors.ink}
@@ -147,23 +172,23 @@ fn render_tile(label, screen_name){
 fn render_launcher(){
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         View{width: Fill height: Fit flow: Right spacing: 12
-            render_tile("新闻简报", "news_list")
-            render_tile("研究卡",   "research_list")
-            render_tile("行情看盘", "kline")
+            tile_news_list := render_tile("tile_news_list",       "新闻简报", "news_list")
+            tile_research_list := render_tile("tile_research_list", "研究卡",   "research_list")
+            tile_kline := render_tile("tile_kline",            "行情看盘", "kline")
         }
         View{width: Fill height: Fit flow: Right spacing: 12
-            render_tile("新闻详情", "news_detail")
-            render_tile("研究详情", "research_detail")
-            render_tile("收藏",     "favorites")
+            tile_news_detail := render_tile("tile_news_detail",       "新闻详情", "news_detail")
+            tile_research_detail := render_tile("tile_research_detail", "研究详情", "research_detail")
+            tile_favorites := render_tile("tile_favorites",         "收藏",     "favorites")
         }
         View{width: Fill height: Fit flow: Right spacing: 12
-            render_tile("设置",     "settings")
-            render_tile("事件流",   "event_stream")
-            render_tile("免责声明", "disclaimer")
+            tile_settings := render_tile("tile_settings",     "设置",     "settings")
+            tile_event_stream := render_tile("tile_event_stream", "事件流",   "event_stream")
+            tile_disclaimer := render_tile("tile_disclaimer",   "免责声明", "disclaimer")
         }
         View{width: Fill height: Fit flow: Down spacing: 6 padding: 16
             Label{text: "备用槽" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-            render_tile("数据源状态页", "datasource_status")
+            tile_datasource_status := render_tile("tile_datasource_status", "数据源状态页", "datasource_status")
         }
     }
 }
@@ -191,166 +216,254 @@ fn render_screen_placeholder(){
     }
 }
 
-// ── news list (splash stub) ────────────────────────────────────
+// ── news list (P0 host wired + P2 ScrollYView) ─────────────────
 fn render_news_list(){
-    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    if loaded_news_list == false {
+        loaded_news_list = true
+        let r = host_news_refresh()
+        if r.ok { data_news_list = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "新闻简报" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.news.refresh 接入后此处显示 30 条)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "• 新浪财经头条  14:32" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "• 美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "• 央行公开市场净投放 1000 亿" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        Label{text: "(host.news.refresh 已接线; 数据从 data_news_list 渲染)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+        if data_news_list.len() == 0 {
+            Label{text: "暂无内容 — 等待 host.news.refresh 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
         }
-        ButtonFlat{text: "查看详情 →" on_click: || nav.push("news_detail")
-            draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
-            draw_text +: {color: colors.accent}}
+        if data_news_list.len() > 0 {
+            View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+                draw_bg.color: colors.bg_elevated border_radius: 8.0
+                Label{text: "已加载 " + data_news_list.len() + " 条 (Phase B-5 渲染列表项)" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            }
+            btn_news_detail := ButtonFlat{text: "查看详情 →" height: 36 on_click: || nav.push("news_detail")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
+                draw_text +: {color: colors.accent}}
+        }
     }
 }
 
-// ── news detail (splash stub) ──────────────────────────────────
+// ── news detail (P0 host wired) ────────────────────────────────
 fn render_news_detail(){
+    if loaded_news_detail == false {
+        loaded_news_detail = true
+        let r = host_news_read("latest")
+        if r.ok { data_news_detail = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "新闻详情" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
-            Label{text: "14:32 · 新浪财经" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-            Label{text: "本次会议与会者就通胀路径展开讨论，多数认为..." draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        if data_news_detail.title == nil {
+            Label{text: "等待 host.news.read 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
+        }
+        if data_news_detail.title != nil {
+            View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+                draw_bg.color: colors.bg_elevated border_radius: 8.0
+                Label{text: data_news_detail.title draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+                Label{text: data_news_detail.source + " · " + data_news_detail.time draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+                Label{text: data_news_detail.summary draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            }
         }
     }
 }
 
-// ── research list (splash stub) ────────────────────────────────
+// ── research list (P0 host wired + P2 ScrollYView) ─────────────
 fn render_research_list(){
-    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    if loaded_research_list == false {
+        loaded_research_list = true
+        let r = host_research_list()
+        if r.ok { data_research_list = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "研究卡" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.research.list 接入后此处显示 5 类)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "宏观经济" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "行业分析" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "公司研究" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "市场策略" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "量化研究" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        Label{text: "(host.research.list 已接线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+        if data_research_list.len() == 0 {
+            Label{text: "暂无内容 — 等待 host.research.list 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
         }
-        ButtonFlat{text: "查看详情 →" on_click: || nav.push("research_detail")
-            draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
-            draw_text +: {color: colors.accent}}
+        if data_research_list.len() > 0 {
+            View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+                draw_bg.color: colors.bg_elevated border_radius: 8.0
+                Label{text: "已加载 " + data_research_list.len() + " 个研究类别" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            }
+            btn_research_detail := ButtonFlat{text: "查看详情 →" height: 36 on_click: || nav.push("research_detail")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
+                draw_text +: {color: colors.accent}}
+        }
     }
 }
 
-// ── research detail (splash stub) ──────────────────────────────
+// ── research detail (P0 host wired) ────────────────────────────
 fn render_research_detail(){
+    if loaded_research_detail == false {
+        loaded_research_detail = true
+        let r = host_research_read("latest")
+        if r.ok { data_research_detail = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "研究卡详情" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — MVP 只做事实层)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "事实层（蓝色实线）" draw_text.color: colors.accent draw_text.text_style.font_size: 14}
-            Label{text: "GDP 同比 +5.2% / CPI 同比 +0.8%" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        if data_research_detail.id == nil {
+            Label{text: "等待 host.research.read 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
+        }
+        if data_research_detail.id != nil {
+            View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+                draw_bg.color: colors.bg_elevated border_radius: 8.0
+                Label{text: "事实层（蓝色实线）" draw_text.color: colors.accent draw_text.text_style.font_size: 14}
+                Label{text: data_research_detail.fact draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            }
         }
     }
 }
 
-// ── kline (splash stub with period chips + price text) ────────
+// ── kline (P0 host wired + P1 chips := id) ─────────────────────
 fn render_kline(){
+    if loaded_kline == false {
+        loaded_kline = true
+        let r = host_quote_candles("sh000001", "1d")
+        if r.ok { data_kline = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "行情看盘" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.quote.candles 接入后此处显示 K 线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        Label{text: "(host.quote.candles 已接线; symbol=" + data_kline.symbol + " period=" + data_kline.period + ")" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Right spacing: 8
             draw_bg.color: colors.bg_elevated border_radius: 8.0 padding: 8
-            ButtonFlat{text: "1d" height: 28 on_click: || nav.push("kline")
-                draw_bg +: {color: colors.accent color_hover: colors.accent_h border_radius: 14.0}
+            btn_kline_1d := ButtonFlat{text: "1d" height: 28 on_click: || nav.push("kline")
+                draw_bg +: {color: colors.accent color_hover: colors.accent border_radius: 14.0}
                 draw_text +: {color: #xffffffff color_hover: #xffffffff}}
-            ButtonFlat{text: "5d" height: 28
+            btn_kline_5d := ButtonFlat{text: "5d" height: 28
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
                 draw_text +: {color: colors.ink color_hover: colors.accent}}
-            ButtonFlat{text: "1mo" height: 28
+            btn_kline_1mo := ButtonFlat{text: "1mo" height: 28
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
                 draw_text +: {color: colors.ink color_hover: colors.accent}}
         }
         View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
             draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "上证指数 (000001) · 3,245.18" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "+18.42 (+0.57%)  vol 2.4B" draw_text.color: colors.green_up draw_text.text_style.font_size: 14}
-            Label{text: "open 3,228.00  high 3,251.30  low 3,219.40  close 3,245.18" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-            Label{text: "(K 线 widget 占位 — quote.candles 接入后渲染 60+ 根蜡烛)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            if data_kline.candles.len() == 0 {
+                Label{text: "等待 host.quote.candles 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
+            }
+            if data_kline.candles.len() > 0 {
+                Label{text: "上证指数 (" + data_kline.symbol + ") · 已加载 " + data_kline.candles.len() + " 根 K 线" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+                Label{text: "(K 线 widget 占位 — Phase B-5 渲染蜡烛)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            }
         }
     }
 }
 
-// ── disclaimer (splash inline) ─────────────────────────────────
+// ── disclaimer (P0 host wired — no host.call, just init data) ─
 fn render_disclaimer(){
+    if loaded_disclaimer == false {
+        loaded_disclaimer = true
+        data_disclaimer = {license: "Apache-2.0", sources: "sina/tencent/hyperliquid/frankfurter/stooq"}
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "免责声明" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
         View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
             draw_bg.color: colors.bg_elevated border_radius: 8.0
             Label{text: "本应用仅供学习参考，不构成任何投资建议。" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "数据来源：新浪财经 / 腾讯财经 / Hyperliquid / Frankfurter ECB / Stooq" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-            Label{text: "开源协议：Apache-2.0" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            Label{text: "数据来源：" + data_disclaimer.sources draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            Label{text: "开源协议：" + data_disclaimer.license draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
         }
     }
 }
 
-// ── favorites (splash inline) ───────────────────────────────────
+// ── favorites (P0 host wired) ──────────────────────────────────
 fn render_favorites(){
+    if loaded_favorites == false {
+        loaded_favorites = true
+        let r = host_fav_list()
+        if r.ok { data_favorites = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "收藏" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.favorites.list 接入后显示已收藏条目)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        Label{text: "(host.fav.list 已接线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
             draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "★ 美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "★ 央行公开市场净投放 1000 亿" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "★ 上证指数 (000001) · 3,245.18" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            if data_favorites.len() == 0 {
+                Label{text: "暂无收藏 — 在新闻/研究详情里点 ★" draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
+            }
+            if data_favorites.len() > 0 {
+                Label{text: "已收藏 " + data_favorites.len() + " 条" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            }
         }
     }
 }
 
-// ── settings (splash inline) ────────────────────────────────────
+// ── settings (P0 host wired) ───────────────────────────────────
 fn render_settings(){
+    if loaded_settings == false {
+        loaded_settings = true
+        let r = host_settings_load()
+        if r.ok { data_settings = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "设置" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.settings.write 接入后写回 SQLite)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        Label{text: "(host.settings.load 已接线; 调用 host.settings.save 写回)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
             draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "主题市场: A股 / 美股 / 加密 / 外汇" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "数据刷新频率: 30s / 1m / 5m / 15m" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "字体大小: 小 / 中 / 大" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "深色 / 浅色 主题" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "主题: " + data_settings.theme + " (light/dark)" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "刷新频率: " + data_settings.freq_ms + " ms" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "字体大小: " + data_settings.font_size + " (sm/md/lg)" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
         }
     }
 }
 
-// ── event_stream (splash inline) ────────────────────────────────
+// ── event_stream (P0 host wired + P2 ScrollYView) ─────────────
 fn render_event_stream(){
-    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    if loaded_event_stream == false {
+        loaded_event_stream = true
+        let r = host_stream_tick()
+        if r.ok { data_event_stream = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "事件流" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.stream.subscribe 接入后实时滚动)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        Label{text: "(host.stream.tick 已接线; Phase B-5 改 host.stream.subscribe 持续推送)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Down spacing: 4 padding: 8
             draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "14:32:18  新浪财经  美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
-            Label{text: "14:30:05  腾讯财经  上证指数突破 3250 点" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
-            Label{text: "14:28:41  Hyperliquid  BTC 突破 67,500 USD" draw_text.color: colors.green_up draw_text.text_style.font_size: 12}
-            Label{text: "14:25:12  Frankfurter ECB  EUR/USD 1.0842" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
-            Label{text: "14:22:33  Stooq  SPX 5,892.47 +0.34%" draw_text.color: colors.green_up draw_text.text_style.font_size: 12}
+            if data_event_stream.len() == 0 {
+                Label{text: "等待 host.stream.tick 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            }
+            if data_event_stream.len() > 0 {
+                Label{text: "已加载 " + data_event_stream.len() + " 条 ticks" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
+            }
         }
     }
 }
 
-// ── datasource_status (splash inline) ───────────────────────────
+// ── datasource_status (P0 host wired + P2 ScrollYView) ─────────
 fn render_datasource_status(){
-    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    if loaded_datasource_status == false {
+        loaded_datasource_status = true
+        let r = host_datasource_status()
+        if r.ok { data_datasource_status = r.data }
+        ui.root.set_visible(false)
+        ui.root.set_visible(true)
+    }
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "数据源状态" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(splash stub; .card not bridged — host.datasource.status 接入后实时心跳)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        Label{text: "(host.datasource.status 已接线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Down spacing: 6 padding: 12
             draw_bg.color: colors.bg_elevated border_radius: 8.0
-            Label{text: "● 新浪财经        sina.com.cn          OK    28ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
-            Label{text: "● 腾讯财经        qq.com               OK    35ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
-            Label{text: "● Hyperliquid     api.hyperliquid.xyz  OK   180ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
-            Label{text: "● Frankfurter ECB api.frankfurter.app  WARN  timeout" draw_text.color: colors.red_down draw_text.text_style.font_size: 13}
-            Label{text: "● Stooq           stooq.com            OK    95ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
+            if data_datasource_status.len() == 0 {
+                Label{text: "等待 host.datasource.status 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 13}
+            }
+            if data_datasource_status.len() > 0 {
+                Label{text: "已加载 " + data_datasource_status.len() + " 个数据源状态" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
+            }
         }
     }
 }
