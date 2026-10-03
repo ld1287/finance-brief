@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/fav.list.input.schema.json",
+  "title": "FavListInput",
+  "description": "Input envelope for the fav.list capability.",
+  "type": "object",
+  "properties": {
+    "view": {
+      "type": "string",
+      "description": "Optional view-type filter.",
+      "enum": ["quote", "news", "research", "candle"]
+    }
+  },
+  "additionalProperties": false
+}

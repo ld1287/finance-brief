@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/fav.schema.json",
+  "title": "Favorites",
+  "description": "User favorites list, scoped to app jail storage.",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "Favorited entities (quote, news, research).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {"type": "string", "minLength": 1, "maxLength": 128},
+          "symbol": {"type": "string", "minLength": 1, "maxLength": 32},
+          "view": {"type": "string", "enum": ["quote", "news", "research", "candle"]},
+          "added_ts": {"type": "integer", "minimum": 0}
+        },
+        "required": ["key", "symbol", "view", "added_ts"],
+        "additionalProperties": false
+      },
+      "maxItems": 256
+    },
+    "updated_at": {
+      "type": "integer",
+      "description": "Unix epoch seconds of the last mutation.",
+      "minimum": 0
+    }
+  },
+  "required": ["items"],
+  "additionalProperties": false
+}

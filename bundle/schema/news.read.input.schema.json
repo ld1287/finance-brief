@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/news.read.input.schema.json",
+  "title": "NewsReadInput",
+  "description": "Input envelope for the news.read capability.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Stable key of the news item to look up.",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  },
+  "required": ["key"],
+  "additionalProperties": false
+}

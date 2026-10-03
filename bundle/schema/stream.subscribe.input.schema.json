@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/stream.subscribe.input.schema.json",
+  "title": "StreamSubscribeInput",
+  "description": "Input envelope for the stream.subscribe capability.",
+  "type": "object",
+  "properties": {
+    "symbols": {
+      "type": "array",
+      "description": "Tickers to subscribe to (deltas merge into host state).",
+      "items": {"type": "string", "minLength": 1, "maxLength": 32},
+      "minItems": 1,
+      "maxItems": 64
+    },
+    "kind": {
+      "type": "string",
+      "description": "Optional event-kind filter.",
+      "enum": ["all", "ticker", "orderbook"]
+    }
+  },
+  "required": ["symbols"],
+  "additionalProperties": false
+}

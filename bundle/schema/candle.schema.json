@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/candle.schema.json",
+  "title": "CandleSeries",
+  "description": "OHLCV candle series for one symbol at a fixed period.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol the candles belong to.",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "period": {
+      "type": "string",
+      "description": "Bar period label.",
+      "enum": ["1m", "5m", "15m", "1h", "4h", "1d", "1w"]
+    },
+    "bars": {
+      "type": "array",
+      "description": "Ordered candle bars, oldest first.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "description": "Bar open unix epoch seconds.",
+            "minimum": 0
+          },
+          "open": {"type": "number", "minimum": 0},
+          "high": {"type": "number", "minimum": 0},
+          "low": {"type": "number", "minimum": 0},
+          "close": {"type": "number", "minimum": 0},
+          "volume": {"type": "integer", "minimum": 0}
+        },
+        "required": ["timestamp", "open", "high", "low", "close", "volume"],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 4096
+    },
+    "generated_at": {
+      "type": "integer",
+      "description": "Unix epoch seconds when the series was assembled.",
+      "minimum": 0
+    }
+  },
+  "required": ["symbol", "period", "bars"],
+  "additionalProperties": false
+}

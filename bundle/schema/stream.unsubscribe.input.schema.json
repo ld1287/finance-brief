@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/stream.unsubscribe.input.schema.json",
+  "title": "StreamUnsubscribeInput",
+  "description": "Input envelope for the stream.unsubscribe capability. Takes no arguments — clears the subscription set.",
+  "type": "object",
+  "properties": {
+    "all": {
+      "type": "boolean",
+      "description": "If true, drop every subscription. Defaults to true."
+    }
+  },
+  "additionalProperties": false
+}

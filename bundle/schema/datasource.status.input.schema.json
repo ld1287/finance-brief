@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/datasource.status.input.schema.json",
+  "title": "DatasourceStatusInput",
+  "description": "Input envelope for the datasource.status capability.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "description": "Optional category filter; omit to return every source.",
+      "enum": ["net", "storage", "adapter", "compute"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Optional single-source filter.",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  },
+  "additionalProperties": false
+}

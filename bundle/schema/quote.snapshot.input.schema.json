@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/quote.snapshot.input.schema.json",
+  "title": "QuoteSnapshotInput",
+  "description": "Input envelope for the quote.snapshot capability.",
+  "type": "object",
+  "properties": {
+    "tab": {
+      "type": "string",
+      "description": "Market tab that drives the source adapter selection.",
+      "enum": ["a", "us", "hk", "crypto", "fx"]
+    },
+    "symbols": {
+      "type": "array",
+      "description": "Optional explicit symbol list; omit to use the tab default.",
+      "items": {"type": "string", "minLength": 1, "maxLength": 32},
+      "maxItems": 64
+    }
+  },
+  "required": ["tab"],
+  "additionalProperties": false
+}

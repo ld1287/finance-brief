@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/stream.frequency.set.input.schema.json",
+  "title": "StreamFrequencySetInput",
+  "description": "Input envelope for the stream.frequency.set capability.",
+  "type": "object",
+  "properties": {
+    "frequency": {
+      "type": "string",
+      "description": "Tick cadence.",
+      "enum": ["1s", "5s", "10s"]
+    }
+  },
+  "required": ["frequency"],
+  "additionalProperties": false
+}

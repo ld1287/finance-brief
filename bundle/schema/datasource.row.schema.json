@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/datasource.row.schema.json",
+  "title": "DatasourceRow",
+  "description": "One row in datasource.status — health and traffic counters for a single source.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Source identifier (e.g. sina_news, hyperliquid, stooq_us).",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "kind": {
+      "type": "string",
+      "description": "Source category.",
+      "enum": ["net", "storage", "adapter", "compute"]
+    },
+    "status": {
+      "type": "string",
+      "description": "Current health verdict.",
+      "enum": ["ok", "degraded", "down", "unknown"]
+    },
+    "last_ok_ts": {
+      "type": "integer",
+      "description": "Unix epoch seconds of last successful call.",
+      "minimum": 0
+    },
+    "last_err": {
+      "type": "string",
+      "description": "Last error message (empty when healthy).",
+      "maxLength": 512
+    },
+    "last_err_ts": {
+      "type": "integer",
+      "description": "Unix epoch seconds of last error.",
+      "minimum": 0
+    },
+    "latency_ms_avg": {
+      "type": "number",
+      "description": "Rolling average latency in milliseconds.",
+      "minimum": 0
+    },
+    "success_count": {
+      "type": "integer",
+      "description": "Cumulative successful calls.",
+      "minimum": 0
+    },
+    "err_count": {
+      "type": "integer",
+      "description": "Cumulative failed calls.",
+      "minimum": 0
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether the user has this source toggled on."
+    }
+  },
+  "required": ["name", "kind", "status", "last_ok_ts", "latency_ms_avg", "success_count", "err_count", "enabled"],
+  "additionalProperties": false
+}

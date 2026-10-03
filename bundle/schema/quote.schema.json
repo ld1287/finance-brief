@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/quote.schema.json",
+  "title": "QuoteSnapshot",
+  "description": "Latest snapshot for a single financial instrument (stock, crypto, fx).",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol (e.g. sh000001, AAPL, BTC-USD, EURUSD).",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "last": {
+      "type": "number",
+      "description": "Last traded / mid price.",
+      "minimum": 0
+    },
+    "change_pct": {
+      "type": "number",
+      "description": "Percent change versus the previous close.",
+      "minimum": -100,
+      "maximum": 1000
+    },
+    "bid": {
+      "type": "number",
+      "description": "Best bid price.",
+      "minimum": 0
+    },
+    "ask": {
+      "type": "number",
+      "description": "Best ask price.",
+      "minimum": 0
+    },
+    "volume": {
+      "type": "integer",
+      "description": "Cumulative traded volume for the day.",
+      "minimum": 0
+    },
+    "ts": {
+      "type": "integer",
+      "description": "Unix epoch seconds when the snapshot was sampled.",
+      "minimum": 0
+    }
+  },
+  "required": ["symbol", "last", "change_pct", "bid", "ask", "volume"],
+  "additionalProperties": false
+}

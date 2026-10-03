@@ -1,0 +1,205 @@
+# finance-brief capability catalog
+# Per .todo-octoscript-rewrite-2026-10-02.md §5.1 (Q-B + Q-R1: B)
+#
+# 总 17 capability 名（v1 14 + Q-B 新增 3：stream.subscribe / stream.unsubscribe / stream.frequency.set）
+# 共 15 个 [[capability]] segment：
+#   - fav:    fav.list + fav.toggle        → 1 个 segment（name = 数组）
+#   - settings: settings.load + settings.save → 1 个 segment（name = 数组）
+# 美股实时源：Stooq CSV（per Q-R1: B 决议，从前一版本迁移而来）
+
+# ---------- 1. news.refresh ----------
+[[capability]]
+name = "news.refresh"
+kind = "fetch"
+adapter = "news_sina"
+input_schema = "news.refresh.input.schema.json"
+output_schema = "news.schema.json"
+audit = true
+cache_ttl_seconds = 300
+
+[capability.requires]
+host_fetch = true
+
+
+# ---------- 2. news.read ----------
+[[capability]]
+name = "news.read"
+kind = "fetch"
+adapter = "news_sina"
+input_schema = "news.read.input.schema.json"
+output_schema = "news.schema.json"
+audit = true
+cache_ttl_seconds = 600
+
+[capability.requires]
+host_fetch = true
+
+
+# ---------- 3. quote.snapshot (a/us/hk via tencent; us real-time via stooq, per Q-R1: B) ----------
+[[capability]]
+name = "quote.snapshot"
+kind = "fetch"
+adapter = ["quote_tencent", "quote_stooq"]
+input_schema = "quote.snapshot.input.schema.json"
+output_schema = "quote.schema.json"
+audit = true
+cache_ttl_seconds = 15
+
+[capability.requires]
+host_fetch = true
+
+
+# ---------- 4. quote.snapshot (crypto via hyperliquid) ----------
+[[capability]]
+name = "quote.snapshot"
+kind = "fetch"
+adapter = "quote_hyperliquid"
+input_schema = "quote.snapshot.input.schema.json"
+output_schema = "quote.schema.json"
+audit = true
+cache_ttl_seconds = 10
+
+[capability.requires]
+host_fetch = true
+
+
+# ---------- 5. quote.snapshot (fx via frankfurter) ----------
+[[capability]]
+name = "quote.snapshot"
+kind = "fetch"
+adapter = "quote_frankfurter"
+input_schema = "quote.snapshot.input.schema.json"
+output_schema = "quote.schema.json"
+audit = true
+cache_ttl_seconds = 3600
+
+[capability.requires]
+host_fetch = true
+
+
+# ---------- 6. quote.candles ----------
+[[capability]]
+name = "quote.candles"
+kind = "fetch"
+adapter = "synth_candles"
+input_schema = "quote.candles.input.schema.json"
+output_schema = "candle.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 7. research.list ----------
+[[capability]]
+name = "research.list"
+kind = "fetch"
+adapter = "builtin"
+input_schema = "research.list.input.schema.json"
+output_schema = "research.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 8. research.read ----------
+[[capability]]
+name = "research.read"
+kind = "fetch"
+adapter = "builtin"
+input_schema = "research.read.input.schema.json"
+output_schema = "research.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 9. stream.subscribe (Q-B 新增) ----------
+[[capability]]
+name = "stream.subscribe"
+kind = "call"
+adapter = "stream_subscribe"
+input_schema = "stream.subscribe.input.schema.json"
+output_schema = "stream.subscribe.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 10. stream.unsubscribe (Q-B 新增) ----------
+[[capability]]
+name = "stream.unsubscribe"
+kind = "call"
+adapter = "stream_subscribe"
+input_schema = "stream.subscribe.input.schema.json"
+output_schema = "stream.subscribe.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 11. stream.frequency.set (Q-B 新增) ----------
+[[capability]]
+name = "stream.frequency.set"
+kind = "call"
+adapter = "stream_subscribe"
+input_schema = "stream.subscribe.input.schema.json"
+output_schema = "stream.subscribe.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 12. stream.tick (per Q-E: B 共用 hyperliquid/orderbook) ----------
+[[capability]]
+name = "stream.tick"
+kind = "fetch"
+adapter = "stream_tick"
+input_schema = "stream.tick.input.schema.json"
+output_schema = "stream.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 13. datasource.status ----------
+[[capability]]
+name = "datasource.status"
+kind = "fetch"
+adapter = "datasource_status"
+input_schema = "datasource.status.input.schema.json"
+output_schema = "datasource.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 14. fav (collapsed: fav.list + fav.toggle in 1 segment) ----------
+[[capability]]
+name = ["fav.list", "fav.toggle"]
+adapter = "builtin"
+input_schema = "fav.input.schema.json"
+output_schema = "fav.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true
+
+
+# ---------- 15. settings (collapsed: settings.load + settings.save in 1 segment) ----------
+[[capability]]
+name = ["settings.load", "settings.save"]
+adapter = "builtin"
+input_schema = "settings.input.schema.json"
+output_schema = "settings.schema.json"
+audit = true
+
+[capability.requires]
+host_state = true

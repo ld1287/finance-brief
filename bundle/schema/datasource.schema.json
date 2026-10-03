@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/datasource.schema.json",
+  "title": "DatasourceStatus",
+  "description": "Aggregated datasource health snapshot (per .todo §3.6.4). Items are inlined per JSON-subset restriction.",
+  "type": "object",
+  "properties": {
+    "sources": {
+      "type": "array",
+      "description": "Per-source health rows.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string", "minLength": 1, "maxLength": 64},
+          "kind": {"type": "string", "enum": ["net", "storage", "adapter", "compute"]},
+          "status": {"type": "string", "enum": ["ok", "degraded", "down", "unknown"]},
+          "last_ok_ts": {"type": "integer", "minimum": 0},
+          "last_err": {"type": "string", "maxLength": 512},
+          "last_err_ts": {"type": "integer", "minimum": 0},
+          "latency_ms_avg": {"type": "number", "minimum": 0},
+          "success_count": {"type": "integer", "minimum": 0},
+          "err_count": {"type": "integer", "minimum": 0},
+          "enabled": {"type": "boolean"}
+        },
+        "required": ["name", "kind", "status", "latency_ms_avg", "success_count", "err_count", "enabled"],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 64
+    },
+    "generated_at": {
+      "type": "integer",
+      "description": "Unix epoch seconds when the aggregate was computed.",
+      "minimum": 0
+    }
+  },
+  "required": ["sources", "generated_at"],
+  "additionalProperties": false
+}

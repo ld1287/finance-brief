@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/settings.schema.json",
+  "title": "UserSettings",
+  "description": "Persistent UI / data preferences for the finance-brief bundle.",
+  "type": "object",
+  "properties": {
+    "theme": {
+      "type": "string",
+      "description": "Visual theme preset.",
+      "enum": ["light", "dark", "auto"]
+    },
+    "stream_frequency": {
+      "type": "string",
+      "description": "Default stream tick cadence.",
+      "enum": ["1s", "5s", "10s"]
+    },
+    "data_sources_enabled": {
+      "type": "array",
+      "description": "List of datasource names currently enabled by the user.",
+      "items": {"type": "string", "minLength": 1, "maxLength": 64},
+      "maxItems": 32
+    },
+    "default_landing_tab": {
+      "type": "string",
+      "description": "Tab to focus on bundle launch.",
+      "enum": ["news", "quotes", "research", "stream", "datasource", "favorites", "settings"]
+    },
+    "locale": {
+      "type": "string",
+      "description": "BCP-47 locale tag (e.g. zh-CN, en-US).",
+      "minLength": 2,
+      "maxLength": 16
+    }
+  },
+  "required": ["theme", "stream_frequency", "data_sources_enabled"],
+  "additionalProperties": false
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/fav.toggle.input.schema.json",
+  "title": "FavToggleInput",
+  "description": "Input envelope for the fav.toggle capability.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Stable key for the favorite entity.",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "add": {
+      "type": "boolean",
+      "description": "True to add, false to remove."
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol the favorite points at.",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "view": {
+      "type": "string",
+      "description": "View type the favorite belongs to.",
+      "enum": ["quote", "news", "research", "candle"]
+    }
+  },
+  "required": ["key", "add"],
+  "additionalProperties": false
+}

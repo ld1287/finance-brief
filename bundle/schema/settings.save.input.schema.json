@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/settings.save.input.schema.json",
+  "title": "SettingsSaveInput",
+  "description": "Input envelope for the settings.save capability.",
+  "type": "object",
+  "properties": {
+    "patch": {
+      "type": "object",
+      "description": "Partial settings patch to merge into persisted settings.",
+      "properties": {
+        "theme": {"type": "string", "enum": ["light", "dark", "auto"]},
+        "stream_frequency": {"type": "string", "enum": ["1s", "5s", "10s"]},
+        "data_sources_enabled": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 64},
+          "maxItems": 32
+        },
+        "default_landing_tab": {"type": "string", "enum": ["news", "quotes", "research", "stream", "datasource", "favorites", "settings"]},
+        "locale": {"type": "string", "minLength": 2, "maxLength": 16}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["patch"],
+  "additionalProperties": false
+}

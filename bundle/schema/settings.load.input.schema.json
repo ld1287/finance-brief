@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/settings.load.input.schema.json",
+  "title": "SettingsLoadInput",
+  "description": "Input envelope for the settings.load capability.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Optional dotted-path key to load a single field. Omit for the whole document.",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  },
+  "additionalProperties": false
+}

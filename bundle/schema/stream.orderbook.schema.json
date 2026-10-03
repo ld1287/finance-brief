@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/stream.orderbook.schema.json",
+  "title": "StreamOrderbook",
+  "description": "Aggregated orderbook snapshot for one symbol in the stream frame.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol.",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "ts": {
+      "type": "integer",
+      "description": "Unix epoch seconds when the snapshot was sampled.",
+      "minimum": 0
+    },
+    "bids": {
+      "type": "array",
+      "description": "Best-N bid levels, price-descending.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "price": {"type": "number", "minimum": 0},
+          "size": {"type": "number", "minimum": 0}
+        },
+        "required": ["price", "size"],
+        "additionalProperties": false
+      },
+      "maxItems": 64
+    },
+    "asks": {
+      "type": "array",
+      "description": "Best-N ask levels, price-ascending.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "price": {"type": "number", "minimum": 0},
+          "size": {"type": "number", "minimum": 0}
+        },
+        "required": ["price", "size"],
+        "additionalProperties": false
+      },
+      "maxItems": 64
+    },
+    "mid": {
+      "type": "number",
+      "description": "Mid price derived from best bid + best ask.",
+      "minimum": 0
+    },
+    "spread": {
+      "type": "number",
+      "description": "Best ask minus best bid.",
+      "minimum": 0
+    },
+    "cumulative_vol": {
+      "type": "number",
+      "description": "Total traded volume since session open.",
+      "minimum": 0
+    }
+  },
+  "required": ["symbol", "ts", "bids", "asks", "mid", "spread", "cumulative_vol"],
+  "additionalProperties": false
+}

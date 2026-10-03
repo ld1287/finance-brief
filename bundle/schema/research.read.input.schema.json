@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/research.read.input.schema.json",
+  "title": "ResearchReadInput",
+  "description": "Input envelope for the research.read capability.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable note identifier returned by research.list.",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  },
+  "required": ["id"],
+  "additionalProperties": false
+}

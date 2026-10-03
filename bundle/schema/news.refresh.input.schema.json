@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/news.refresh.input.schema.json",
+  "title": "NewsRefreshInput",
+  "description": "Input envelope for the news.refresh capability.",
+  "type": "object",
+  "properties": {
+    "tab": {
+      "type": "string",
+      "description": "Optional tab filter; defaults to all when omitted.",
+      "enum": ["all", "宏观", "A股", "加密", "外汇"]
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Bypass the in-memory cache and refetch from the network."
+    }
+  },
+  "additionalProperties": false
+}

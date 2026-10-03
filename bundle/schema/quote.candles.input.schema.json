@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/quote.candles.input.schema.json",
+  "title": "QuoteCandlesInput",
+  "description": "Input envelope for the quote.candles capability.",
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol to synthesize candles for.",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "period": {
+      "type": "string",
+      "description": "Bar period.",
+      "enum": ["1m", "5m", "1h", "1d"]
+    },
+    "count": {
+      "type": "integer",
+      "description": "Number of bars to return.",
+      "minimum": 1,
+      "maximum": 4096
+    }
+  },
+  "required": ["symbol", "period", "count"],
+  "additionalProperties": false
+}

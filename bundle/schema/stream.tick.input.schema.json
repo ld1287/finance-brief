@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/stream.tick.input.schema.json",
+  "title": "StreamTickInput",
+  "description": "Input envelope for the stream.tick capability (push / pull a single frame).",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "description": "Which slice of the stream frame to produce.",
+      "enum": ["ticker", "orderbook"]
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Required when kind=orderbook, optional for kind=ticker.",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "n": {
+      "type": "integer",
+      "description": "How many rows to return in the slice.",
+      "minimum": 1,
+      "maximum": 64
+    }
+  },
+  "required": ["kind"],
+  "additionalProperties": false
+}

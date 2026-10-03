@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/research.list.input.schema.json",
+  "title": "ResearchListInput",
+  "description": "Input envelope for the research.list capability.",
+  "type": "object",
+  "properties": {
+    "tag": {
+      "type": "string",
+      "description": "Optional tag filter; omit to list all notes.",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of notes to return.",
+      "minimum": 1,
+      "maximum": 256
+    }
+  },
+  "additionalProperties": false
+}

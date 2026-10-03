@@ -1,0 +1,163 @@
+// workflow.octoscript — L1 (finance-brief bundle)
+// 7 个 workflow 编排函数
+// 数据全部走 host.call("capability", {args}) → state
+//
+// L1 constraints honored (per L0 hard constraints):
+//   - no `let q = "{{state.q}}"` style trip_planner L2 binding
+//   - no walrus assignment operator (Makepad non-canonical)
+//   - use mod + fn + workflow.plan / workflow.parallel / workflow.log 全部允许
+//
+// Capability contract (per capabilities.toml §1..§15, 总 17 名):
+//   - news.refresh / news.read
+//   - quote.snapshot (a/us/hk/crypto/fx 共用 name, 不同 adapter)
+//   - quote.candles
+//   - research.list / research.read
+//   - stream.subscribe / stream.unsubscribe / stream.frequency.set / stream.tick
+//   - datasource.status
+//   - fav.list / fav.toggle    (collapsed to one [[capability]] segment)
+//   - settings.load / settings.save (collapsed to one [[capability]] segment)
+//
+// Screen mapping (per MVP-TODO.md §5):
+//   #2 list  → refresh_workflow
+//   #3 detail → load_detail_workflow
+//   #5 detail → load_detail_workflow
+//   #8 favorites → toggle_fav_workflow
+//   #9 settings → load_settings_workflow + settings_save_workflow
+//   #11 event_stream → stream_tick_workflow (background)
+//   #12 datasource → datasource_status_workflow
+
+use mod.cap.news
+use mod.cap.quote
+use mod.cap.research
+use mod.cap.fav
+use mod.cap.settings
+use mod.cap.stream
+use mod.cap.datasource
+
+// Module-level: workflow 常量（顶层 let, 不依赖 state）
+let default_orderbook_symbols = ["AAPL", "MSFT", "TSLA", "BTC", "ETH", "SOL"]
+let default_news_limit = 30
+let default_ticker_limit = 10
+
+// 1) 启动 refresh：app 启动时调用一次
+//    顺序：先 settings → fav（settings 影响 fav 过滤）→ 并行拉 news + 四个行情 tab
+//    rationale: settings 决定数据源开关, fav 决定过滤; 行情四 tab 并行减少冷启动延迟
+fn refresh_workflow() {
+    let plan = workflow.plan([
+        settings.load({}),
+        fav.list({}),
+        workflow.parallel([
+            news.refresh({limit: 30}),
+            quote.snapshot({tab: "a"}),
+            quote.snapshot({tab: "us"}),
+            quote.snapshot({tab: "crypto"}),
+            quote.snapshot({tab: "fx"}),
+            research.list({}),
+        ]),
+        workflow.log({msg: "refresh ok", kind: "cold_start"}),
+    ])
+    plan.execute()
+}
+
+// 2) 进入 #9 settings 时 load
+//    顺次：settings.load → stream.frequency.set（应用持久化频率）→ stream.tick config
+//    rationale: settings 改变后, 后台 stream 频率必须同步刷新
+fn load_settings_workflow() {
+    let plan = workflow.plan([
+        settings.load({}),
+        workflow.parallel([
+            stream.tick({kind: "config", limit: 1}),
+            datasource.status({capabilities: ["stream.tick", "stream.subscribe"]}),
+        ]),
+        workflow.log({msg: "settings loaded", screen: 9}),
+    ])
+    plan.execute()
+}
+
+// 3) 收藏切换（#3 #5 #8 详情 / 列表 / favorites 页通用）
+//    顺次：toggle → 重新拉列表（局部刷新）→ log
+//    局部刷新避免重跑全量 refresh_workflow
+fn toggle_fav_workflow(kind, key) {
+    let plan = workflow.plan([
+        fav.toggle({kind: kind, key: key}),
+        fav.list({kind: kind}),
+        workflow.parallel([
+            settings.load({}),
+        ]),
+        workflow.log({msg: "fav toggled", kind: kind, key: key}),
+    ])
+    plan.execute()
+}
+
+// 4) 进入 detail 时拉数据（#3 news detail / #5 research detail）
+//    并行：news.read + research.read（两份都返回, host 按 kind 路由）
+//    rationale: detail 屏需要 source-aware 字段（research 多分不同点）
+fn load_detail_workflow(key) {
+    let plan = workflow.plan([
+        workflow.parallel([
+            news.read({key: key}),
+            research.read({id: key}),
+        ]),
+        quote.candles({symbol: key, interval: "1d", limit: 30}),
+        workflow.log({msg: "detail loaded", key: key}),
+    ])
+    plan.execute()
+}
+
+// 5) #11 事件流后台 tick（per Q-E: B 共用 hyperliquid/orderbook + mock 快讯）
+//    条件：state.stream_paused 为真直接 return（暂停态不拉）
+//    并行：ticker（mock 快讯 10 条）+ orderbook（5 symbols 共享 hyperliquid）
+fn stream_tick_workflow() {
+    if state.stream_paused { return }
+    let plan = workflow.plan([
+        workflow.parallel([
+            stream.tick({kind: "ticker", limit: 10}),
+            stream.tick({kind: "orderbook", symbols: ["AAPL", "MSFT", "TSLA", "BTC", "ETH", "SOL"]}),
+        ]),
+        workflow.log({msg: "stream tick", count: 10, paused: false}),
+    ])
+    plan.execute()
+}
+
+// 6) #12 数据源状态聚合（展示 5 个 fetch cap 的健康度）
+//    capabilities 数组显式列出每个行情 tab 各自一条 quote.snapshot
+//    rationale: 用户在 #12 看数据源矩阵, 每 tab 单独 status
+fn datasource_status_workflow() {
+    let plan = workflow.plan([
+        datasource.status({
+            capabilities: [
+                "news.refresh",
+                "quote.snapshot.tab=a",
+                "quote.snapshot.tab=us",
+                "quote.snapshot.tab=crypto",
+                "quote.snapshot.tab=fx",
+                "stream.tick",
+                "stream.subscribe"
+            ]
+        }),
+        workflow.parallel([
+            quote.snapshot({tab: "a"}),
+            quote.snapshot({tab: "us"}),
+            quote.snapshot({tab: "crypto"}),
+            quote.snapshot({tab: "fx"}),
+        ]),
+        workflow.log({msg: "datasource status refreshed", screen: 12}),
+    ])
+    plan.execute()
+}
+
+// 7) #9 设置保存（频率切换 / 数据源开关 / 主题切换）
+//    patch 由 #9 settings.octoscript 的 on_tap 回调提供
+//    顺次：save → stream.frequency.set（若 patch 含 frequency）→ refresh
+//    rationale: settings.save 后, stream.run 必须动且 quote.run 必须 refresh
+fn settings_save_workflow(patch) {
+    let plan = workflow.plan([
+        settings.save({patch: patch}),
+        workflow.parallel([
+            stream.frequency.set({frequency: patch.frequency}),
+            stream.subscribe({topics: ["ticker", "orderbook"]}),
+        ]),
+        workflow.log({msg: "settings saved", patch_keys: "ok"}),
+    ])
+    plan.execute()
+}

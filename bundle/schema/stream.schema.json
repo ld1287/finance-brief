@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finance-brief/bundle/schema/stream.schema.json",
+  "title": "StreamFrame",
+  "description": "Combined event-stream frame emitted by stream.tick (per .todo §3.5.4). Items are inlined per JSON-subset restriction.",
+  "type": "object",
+  "properties": {
+    "ticker": {
+      "type": "array",
+      "description": "Ticker / news flash events since the previous frame.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ts": {"type": "integer", "minimum": 0},
+          "category": {"type": "string", "enum": ["宏观", "A股", "港股", "美股", "加密", "外汇"]},
+          "title": {"type": "string", "minLength": 1, "maxLength": 256},
+          "source": {"type": "string", "minLength": 1, "maxLength": 64},
+          "kind": {"type": "string", "enum": ["news", "ticker", "alert"]}
+        },
+        "required": ["ts", "category", "title", "source", "kind"],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 256
+    },
+    "orderbook": {
+      "type": "array",
+      "description": "Orderbook snapshots since the previous frame.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": {"type": "string", "minLength": 1, "maxLength": 32},
+          "ts": {"type": "integer", "minimum": 0},
+          "bids": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "price": {"type": "number", "minimum": 0},
+                "size": {"type": "number", "minimum": 0}
+              },
+              "required": ["price", "size"],
+              "additionalProperties": false
+            },
+            "maxItems": 64
+          },
+          "asks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "price": {"type": "number", "minimum": 0},
+                "size": {"type": "number", "minimum": 0}
+              },
+              "required": ["price", "size"],
+              "additionalProperties": false
+            },
+            "maxItems": 64
+          },
+          "mid": {"type": "number", "minimum": 0},
+          "spread": {"type": "number", "minimum": 0},
+          "cumulative_vol": {"type": "number", "minimum": 0}
+        },
+        "required": ["symbol", "ts", "bids", "asks", "mid", "spread", "cumulative_vol"],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 256
+    },
+    "generated_at": {
+      "type": "integer",
+      "description": "Unix epoch seconds when the frame was assembled.",
+      "minimum": 0
+    }
+  },
+  "required": ["ticker", "orderbook", "generated_at"],
+  "additionalProperties": false
+}
