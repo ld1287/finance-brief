@@ -19,6 +19,7 @@ use serde_json::{json, Value};
 /// Wire this adapter into `rt`. Two tools share the same JSON `contract`
 /// shape because `news.refresh` and `news.read` both produce `NewsItem`s.
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "news_sina", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -116,15 +117,31 @@ async fn handle(args: Value) -> Result<Value, String> {
 /// GET the Sina roll feed, parse, normalise into `NewsItem` JSON rows.
 async fn fetch_news(limit: usize) -> Result<Vec<Value>, String> {
     let url = "https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num=30";
-    let body = reqwest::get(url)
+    tracing::info!(url = %url, limit, "fetch begin");
+    let resp = reqwest::get(url)
         .await
-        .map_err(|e| format!("sina GET failed: {e}"))?
+        .map_err(|e| {
+            tracing::warn!(err = %e, url = %url, "fetch timeout");
+            format!("sina GET failed: {e}")
+        })?;
+    let status = resp.status();
+    if status.is_success() {
+        tracing::info!(status = %status, "fetch ok");
+    } else {
+        tracing::warn!(status = %status, "fetch non-2xx");
+    }
+    let body = resp
         .text()
         .await
-        .map_err(|e| format!("sina body read failed: {e}"))?;
+        .map_err(|e| {
+            tracing::error!(err = %e, "fetch body read failed");
+            format!("sina body read failed: {e}")
+        })?;
 
-    let parsed: Value =
-        serde_json::from_str(&body).map_err(|e| format!("sina body parse failed: {e}"))?;
+    let parsed: Value = serde_json::from_str(&body).map_err(|e| {
+        tracing::error!(err = %e, "parse failed");
+        format!("sina body parse failed: {e}")
+    })?;
 
     let arr = parsed
         .get("result")

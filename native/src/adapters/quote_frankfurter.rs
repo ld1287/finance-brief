@@ -18,6 +18,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "quote_frankfurter", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -111,12 +112,21 @@ async fn handle(args: Value) -> Result<Value, String> {
                     "https://api.frankfurter.dev/v1/latest?from={base}&to={}",
                     quotes.join(",")
                 );
-                let v: Value = reqwest::get(&url)
-                    .await
-                    .map_err(|e| format!("frankfurter GET {base} failed: {e}"))?
-                    .json()
-                    .await
-                    .map_err(|e| format!("frankfurter body parse failed: {e}"))?;
+                tracing::info!(url = %url, base = %base, "fetch begin");
+                let resp = reqwest::get(&url).await.map_err(|e| {
+                    tracing::warn!(err = %e, base = %base, "fetch timeout");
+                    format!("frankfurter GET {base} failed: {e}")
+                })?;
+                let status = resp.status();
+                if status.is_success() {
+                    tracing::info!(status = %status, base = %base, "fetch ok");
+                } else {
+                    tracing::warn!(status = %status, base = %base, "fetch non-2xx");
+                }
+                let v: Value = resp.json().await.map_err(|e| {
+                    tracing::error!(err = %e, base = %base, "parse failed");
+                    format!("frankfurter body parse failed: {e}")
+                })?;
                 crate::cache::store_cached(&cache_key, &v, 3600, now_u)?;
                 v
             }

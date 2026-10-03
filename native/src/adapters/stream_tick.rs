@@ -20,6 +20,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "stream_tick", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -71,12 +72,16 @@ async fn handle(args: Value) -> Result<Value, String> {
     let symbols: Vec<String> = args
         .get("symbols")
         .and_then(|v| v.as_array())
-        .ok_or_else(|| "missing symbols".to_string())?
+        .ok_or_else(|| {
+            tracing::warn!("stream.tick missing symbols");
+            "missing symbols".to_string()
+        })?
         .iter()
         .filter_map(|v| v.as_str().map(str::to_string))
         .collect();
 
     if symbols.is_empty() {
+        tracing::warn!("stream.tick empty symbols");
         return Err("symbols must be non-empty".into());
     }
 
@@ -100,6 +105,13 @@ async fn handle(args: Value) -> Result<Value, String> {
     if let Some(n) = limit {
         rows.truncate(n);
     }
+
+    tracing::info!(
+        symbols = symbols.len(),
+        kind = %kind,
+        rows = rows.len(),
+        "stream.tick mock build",
+    );
 
     Ok(json!({
         "rows": rows,

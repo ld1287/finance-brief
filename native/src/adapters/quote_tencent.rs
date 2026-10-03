@@ -18,6 +18,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "quote_tencent", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -87,14 +88,26 @@ async fn handle(args: Value) -> Result<Value, String> {
     let joined = syms.join(",");
     let url = format!("https://qt.gtimg.cn/q={joined}");
 
-    let body = reqwest::get(&url)
-        .await
-        .map_err(|e| format!("tencent GET failed: {e}"))?
-        .text()
-        .await
-        .map_err(|e| format!("tencent body read failed: {e}"))?;
+    tracing::info!(url = %url, tab = %tab, symbols = syms.len(), "fetch begin");
+    let resp = reqwest::get(&url).await.map_err(|e| {
+        tracing::warn!(err = %e, "fetch timeout");
+        format!("tencent GET failed: {e}")
+    })?;
+    let status = resp.status();
+    if status.is_success() {
+        tracing::info!(status = %status, "fetch ok");
+    } else {
+        tracing::warn!(status = %status, "fetch non-2xx");
+    }
+    let body = resp.text().await.map_err(|e| {
+        tracing::error!(err = %e, "fetch body read failed");
+        format!("tencent body read failed: {e}")
+    })?;
 
-    let rows = parse_tencent(&body, tab)?;
+    let rows = parse_tencent(&body, tab).map_err(|e| {
+        tracing::error!(err = %e, "parse failed");
+        e
+    })?;
     let envelope = json!({ "rows": rows, "fetched_at": now });
     crate::cache::store_cached(&cache_key, &envelope, 5, now)?;
     Ok(envelope)

@@ -29,6 +29,7 @@ const DEFAULT_DATASOURCES: &[(&str, &str)] = &[
 ];
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "datasource_status", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -85,6 +86,7 @@ async fn handle(args: Value) -> Result<Value, String> {
                     .collect()
             });
 
+    let requested_len = requested.as_ref().map(|v| v.len());
     let entries: Vec<(&'static str, &'static str)> = match requested {
         None => DEFAULT_DATASOURCES.to_vec(),
         Some(reqs) => reqs
@@ -99,6 +101,11 @@ async fn handle(args: Value) -> Result<Value, String> {
     };
 
     let now = now_ts();
+    tracing::info!(
+        rows = entries.len(),
+        requested = requested_len,
+        "datasource_status stub build",
+    );
     let rows: Vec<Value> = entries
         .iter()
         .map(|(name, kind)| build_stub_row(name, kind, now))
@@ -127,7 +134,13 @@ fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+        .unwrap_or_else(|e| {
+            // System clock is before UNIX_EPOCH — only realistic on machines
+            // with a wildly wrong RTC. Warn so the silent zero in the JSON
+            // output doesn't look like a successful fetch.
+            tracing::warn!(err = %e, "clock before unix epoch");
+            0
+        })
 }
 
 #[cfg(test)]

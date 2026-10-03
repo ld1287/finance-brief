@@ -19,6 +19,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "quote_hyperliquid", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -124,16 +125,27 @@ async fn handle(args: Value) -> Result<Value, String> {
 /// POST `{"type":"allMids"}` and parse the flat mids map.
 async fn fetch_all_mids() -> Result<Value, String> {
     let url = "https://api.hyperliquid.xyz/info";
-    let body = reqwest::Client::new()
+    tracing::info!(url = %url, "fetch begin");
+    let resp = reqwest::Client::new()
         .post(url)
         .header("Content-Type", "application/json")
         .json(&json!({ "type": "allMids" }))
         .send()
         .await
-        .map_err(|e| format!("hyperliquid POST failed: {e}"))?
-        .json::<Value>()
-        .await
-        .map_err(|e| format!("hyperliquid body parse failed: {e}"))?;
+        .map_err(|e| {
+            tracing::warn!(err = %e, "fetch timeout");
+            format!("hyperliquid POST failed: {e}")
+        })?;
+    let status = resp.status();
+    if status.is_success() {
+        tracing::info!(status = %status, "fetch ok");
+    } else {
+        tracing::warn!(status = %status, "fetch non-2xx");
+    }
+    let body = resp.json::<Value>().await.map_err(|e| {
+        tracing::error!(err = %e, "parse failed");
+        format!("hyperliquid body parse failed: {e}")
+    })?;
     Ok(body)
 }
 

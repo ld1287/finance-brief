@@ -29,6 +29,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "stream_subscribe", "register adapter");
     // ---- stream.subscribe ----
     let subscribe_contract = crate::host::JsonToolContract::new(
         json!({
@@ -116,15 +117,20 @@ async fn handle_subscribe(args: Value) -> Result<Value, String> {
     let symbols: Vec<String> = args
         .get("symbols")
         .and_then(|v| v.as_array())
-        .ok_or_else(|| "missing symbols".to_string())?
+        .ok_or_else(|| {
+            tracing::warn!("stream.subscribe missing symbols");
+            "missing symbols".to_string()
+        })?
         .iter()
         .filter_map(|v| v.as_str().map(str::to_string))
         .collect();
 
     if symbols.is_empty() {
+        tracing::warn!("stream.subscribe empty symbols");
         return Err("symbols must be non-empty".into());
     }
 
+    tracing::info!(symbols = symbols.len(), "stream.subscribe ack");
     simulate_broker_write().await;
 
     Ok(json!({
@@ -139,6 +145,7 @@ async fn handle_unsubscribe(args: Value) -> Result<Value, String> {
     // "stop everything". We don't need to look at the contents; the splash
     // workflow tears its own timer / broker handles down on the next tick.
     let _maybe_symbols = args.get("symbols").and_then(|v| v.as_array());
+    tracing::info!("stream.unsubscribe ack");
 
     simulate_broker_write().await;
 
@@ -152,9 +159,13 @@ async fn handle_set_frequency(args: Value) -> Result<Value, String> {
     let frequency = args
         .get("frequency")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing frequency".to_string())?
+        .ok_or_else(|| {
+            tracing::warn!("stream.frequency.set missing frequency");
+            "missing frequency".to_string()
+        })?
         .to_string();
 
+    tracing::info!(frequency = %frequency, "stream.frequency.set ack");
     simulate_broker_write().await;
 
     Ok(json!({

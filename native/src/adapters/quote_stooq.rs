@@ -20,6 +20,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "quote_stooq", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -96,14 +97,26 @@ async fn handle(args: Value) -> Result<Value, String> {
     // `h` ⇒ add headers. `e=csv` ⇒ CSV output (default but explicit).
     let url = format!("https://stooq.com/q/l/?s={joined}&f=sd2t2ohlcv&h&e=csv");
 
-    let body = reqwest::get(&url)
-        .await
-        .map_err(|e| format!("stooq GET failed: {e}"))?
-        .text()
-        .await
-        .map_err(|e| format!("stooq body read failed: {e}"))?;
+    tracing::info!(url = %url, symbols = normalised.len(), "fetch begin");
+    let resp = reqwest::get(&url).await.map_err(|e| {
+        tracing::warn!(err = %e, "fetch timeout");
+        format!("stooq GET failed: {e}")
+    })?;
+    let status = resp.status();
+    if status.is_success() {
+        tracing::info!(status = %status, "fetch ok");
+    } else {
+        tracing::warn!(status = %status, "fetch non-2xx");
+    }
+    let body = resp.text().await.map_err(|e| {
+        tracing::error!(err = %e, "fetch body read failed");
+        format!("stooq body read failed: {e}")
+    })?;
 
-    let rows = parse_stooq_csv(&body)?;
+    let rows = parse_stooq_csv(&body).map_err(|e| {
+        tracing::error!(err = %e, "parse failed");
+        e
+    })?;
     let envelope = json!({ "rows": rows, "fetched_at": now });
     crate::cache::store_cached(&cache_key, &envelope, 5, now)?;
     Ok(envelope)

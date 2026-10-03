@@ -13,6 +13,7 @@ use crate::host::CapabilityRuntime;
 use serde_json::{json, Value};
 
 pub fn register(rt: &mut CapabilityRuntime) {
+    tracing::info!(capability = "synth_candles", "register adapter");
     let contract = crate::host::JsonToolContract::new(
         json!({
             "type": "object",
@@ -59,18 +60,31 @@ async fn handle(args: Value) -> Result<Value, String> {
     let symbol = args
         .get("symbol")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing symbol".to_string())?
+        .ok_or_else(|| {
+            tracing::warn!("synth_candles missing symbol");
+            "missing symbol".to_string()
+        })?
         .to_string();
     let period = args
         .get("period")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "missing period".to_string())?
+        .ok_or_else(|| {
+            tracing::warn!("synth_candles missing period");
+            "missing period".to_string()
+        })?
         .to_string();
     let count = args.get("count").and_then(|v| v.as_u64()).unwrap_or(120) as usize;
 
     let bars = synth_bars(&symbol, &period, count);
     let period_secs = period_seconds(&period);
     let now = now_ts();
+
+    tracing::info!(
+        symbol = %symbol,
+        period = %period,
+        count = bars.len(),
+        "synth_candles build",
+    );
 
     Ok(json!({
         "symbol": symbol,
