@@ -102,8 +102,8 @@ test result: ok.  3 passed; 0 failed   # smoke
 ## 8. Git 信息
 
 - 分支：`main`
-- 相对 `origin/main`：ahead 21，未推送
-- 当前 HEAD：`41dfed2 Add 4 splash-inline stubs: favorites, settings, event_stream, datasource_status`
+- 相对 `origin/main`：ahead 24，未推送
+- 当前 HEAD：`6b6bf36 Phase B-5: inline 10 launcher tiles + real data list rendering`
 
 ## 9. License
 
