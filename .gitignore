@@ -21,3 +21,4 @@ finance-brief/_captures/
 
 # Local orchestration TODO files (git-ignored coordination docs)
 .todo-*.md
+.todo-*/
