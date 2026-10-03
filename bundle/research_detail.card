@@ -9,7 +9,8 @@ state selected  { shape: text, initial: "" }                                  # 
 state fav_state { shape: enum[none, starred], initial: .none }               # 收藏 toggle 状态
 
 event back       { selected: clear, fav_state: set(.none) }                   # 返回 list
-event toggle_fav { fav_state: toggle }                                        # 切收藏
+event save_fav   { fav_state: set(.starred) }                                 # 收藏
+event unsave_fav { fav_state: set(.none) }                                    # 取消收藏
 event open_pick  { selected: set($value) }                                    # 占位;host 拦截 chip value
 
 copy hdr          { class: vocabulary, en: "Research detail",    zh: "研究卡详情" }
@@ -30,8 +31,8 @@ view root Surface(pad: .page) { detail }
 view detail Col {
   Row(align: .center, gap: 10) {
     Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
-    Chip(text: copy.fav_lbl_off, on_tap: toggle_fav, value: "1", active: fav_state == .none, width: .fit)
-    Chip(text: copy.fav_lbl_on,  on_tap: toggle_fav, value: "1", active: fav_state == .starred, tone: .danger, width: .fit)
+    Chip(text: copy.fav_lbl_off, on_tap: save_fav, value: "1", active: fav_state == .none, width: .fit)
+    Chip(text: copy.fav_lbl_on,  on_tap: unsave_fav, value: "1", active: fav_state == .starred, tone: .danger, width: .fit)
   }
   TextTitle(text: note.title, width: .fill)
   TextCaption(text: note.subtitle)
