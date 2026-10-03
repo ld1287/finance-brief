@@ -159,36 +159,67 @@ fn render_header(){
     }
 }
 
-// ── launcher tile ──────────────────────────────────────────────
-fn render_tile(id_name, label, screen_name){
-    ButtonFlat{width: Fill height: 96 on_click: || nav.push(screen_name)
-        draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
-        draw_text +: {color: colors.ink}
-        Label{text: label draw_text.color: colors.ink draw_text.text_style.font_size: 16}
-    }
-}
-
 // ── launcher ───────────────────────────────────────────────────
 fn render_launcher(){
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         View{width: Fill height: Fit flow: Right spacing: 12
-            tile_news_list := render_tile("tile_news_list",       "新闻简报", "news_list")
-            tile_research_list := render_tile("tile_research_list", "研究卡",   "research_list")
-            tile_kline := render_tile("tile_kline",            "行情看盘", "kline")
+            tile_news_list := ButtonFlat{width: Fill height: 96 on_click: || nav.push("news_list")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "新闻简报" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
+            tile_research_list := ButtonFlat{width: Fill height: 96 on_click: || nav.push("research_list")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "研究卡" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
+            tile_kline := ButtonFlat{width: Fill height: 96 on_click: || nav.push("kline")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "行情看盘" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
         }
         View{width: Fill height: Fit flow: Right spacing: 12
-            tile_news_detail := render_tile("tile_news_detail",       "新闻详情", "news_detail")
-            tile_research_detail := render_tile("tile_research_detail", "研究详情", "research_detail")
-            tile_favorites := render_tile("tile_favorites",         "收藏",     "favorites")
+            tile_news_detail := ButtonFlat{width: Fill height: 96 on_click: || nav.push("news_detail")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "新闻详情" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
+            tile_research_detail := ButtonFlat{width: Fill height: 96 on_click: || nav.push("research_detail")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "研究详情" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
+            tile_favorites := ButtonFlat{width: Fill height: 96 on_click: || nav.push("favorites")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "收藏" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
         }
         View{width: Fill height: Fit flow: Right spacing: 12
-            tile_settings := render_tile("tile_settings",     "设置",     "settings")
-            tile_event_stream := render_tile("tile_event_stream", "事件流",   "event_stream")
-            tile_disclaimer := render_tile("tile_disclaimer",   "免责声明", "disclaimer")
+            tile_settings := ButtonFlat{width: Fill height: 96 on_click: || nav.push("settings")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "设置" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
+            tile_event_stream := ButtonFlat{width: Fill height: 96 on_click: || nav.push("event_stream")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "事件流" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
+            tile_disclaimer := ButtonFlat{width: Fill height: 96 on_click: || nav.push("disclaimer")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "免责声明" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
         }
         View{width: Fill height: Fit flow: Down spacing: 6 padding: 16
             Label{text: "备用槽" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-            tile_datasource_status := render_tile("tile_datasource_status", "数据源状态页", "datasource_status")
+            tile_datasource_status := ButtonFlat{width: Fill height: 96 on_click: || nav.push("datasource_status")
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 12.0 border_size: 1.0}
+                draw_text +: {color: colors.ink}
+                Label{text: "数据源状态页" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            }
         }
     }
 }
@@ -225,16 +256,19 @@ fn render_news_list(){
         ui.root.set_visible(false)
         ui.root.set_visible(true)
     }
-    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 8 padding: 16
         Label{text: "新闻简报" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(host.news.refresh 已接线; 数据从 data_news_list 渲染)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         if data_news_list.len() == 0 {
             Label{text: "暂无内容 — 等待 host.news.refresh 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
         }
         if data_news_list.len() > 0 {
-            View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-                draw_bg.color: colors.bg_elevated border_radius: 8.0
-                Label{text: "已加载 " + data_news_list.len() + " 条 (Phase B-5 渲染列表项)" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "共 " + data_news_list.len() + " 条" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+            for i in data_news_list.len() {
+                View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
+                    draw_bg.color: colors.bg_elevated border_radius: 8.0
+                    Label{text: data_news_list[i].title draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+                    Label{text: data_news_list[i].source + " · " + data_news_list[i].time draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+                }
             }
             btn_news_detail := ButtonFlat{text: "查看详情 →" height: 36 on_click: || nav.push("news_detail")
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
@@ -277,16 +311,19 @@ fn render_research_list(){
         ui.root.set_visible(false)
         ui.root.set_visible(true)
     }
-    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 8 padding: 16
         Label{text: "研究卡" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(host.research.list 已接线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         if data_research_list.len() == 0 {
             Label{text: "暂无内容 — 等待 host.research.list 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
         }
         if data_research_list.len() > 0 {
-            View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-                draw_bg.color: colors.bg_elevated border_radius: 8.0
-                Label{text: "已加载 " + data_research_list.len() + " 个研究类别" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "共 " + data_research_list.len() + " 类" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+            for i in data_research_list.len() {
+                View{width: Fill height: Fit flow: Right spacing: 8 padding: 12
+                    draw_bg.color: colors.bg_elevated border_radius: 8.0
+                    Label{text: data_research_list[i].category draw_text.color: colors.ink draw_text.text_style.font_size: 14 width: Fill}
+                    Label{text: data_research_list[i].count + " 篇" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+                }
             }
             btn_research_detail := ButtonFlat{text: "查看详情 →" height: 36 on_click: || nav.push("research_detail")
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
@@ -330,7 +367,7 @@ fn render_kline(){
     }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "行情看盘" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(host.quote.candles 已接线; symbol=" + data_kline.symbol + " period=" + data_kline.period + ")" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+        Label{text: "symbol=" + data_kline.symbol + " period=" + data_kline.period + "  载入 " + data_kline.candles.len() + " 根" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Right spacing: 8
             draw_bg.color: colors.bg_elevated border_radius: 8.0 padding: 8
             btn_kline_1d := ButtonFlat{text: "1d" height: 28 on_click: || nav.push("kline")
@@ -343,14 +380,20 @@ fn render_kline(){
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
                 draw_text +: {color: colors.ink color_hover: colors.accent}}
         }
-        View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            if data_kline.candles.len() == 0 {
+        if data_kline.candles.len() == 0 {
+            View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
+                draw_bg.color: colors.bg_elevated border_radius: 8.0
                 Label{text: "等待 host.quote.candles 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
             }
-            if data_kline.candles.len() > 0 {
-                Label{text: "上证指数 (" + data_kline.symbol + ") · 已加载 " + data_kline.candles.len() + " 根 K 线" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-                Label{text: "(K 线 widget 占位 — Phase B-5 渲染蜡烛)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        }
+        if data_kline.candles.len() > 0 {
+            View{width: Fill height: Fit flow: Down spacing: 2 padding: 8
+                draw_bg.color: colors.bg_elevated border_radius: 8.0
+                for i in data_kline.candles.len() {
+                    let candle_color = colors.green_up
+                    if data_kline.candles[i].close < data_kline.candles[i].open { candle_color = colors.red_down }
+                    Label{text: data_kline.candles[i].time + "  O:" + data_kline.candles[i].open + "  H:" + data_kline.candles[i].high + "  L:" + data_kline.candles[i].low + "  C:" + data_kline.candles[i].close + "  V:" + data_kline.candles[i].volume draw_text.color: candle_color draw_text.text_style.font_size: 10}
+                }
             }
         }
     }
@@ -386,14 +429,16 @@ fn render_favorites(){
     }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "收藏" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(host.fav.list 已接线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
-        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            if data_favorites.len() == 0 {
-                Label{text: "暂无收藏 — 在新闻/研究详情里点 ★" draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
-            }
-            if data_favorites.len() > 0 {
-                Label{text: "已收藏 " + data_favorites.len() + " 条" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        if data_favorites.len() == 0 {
+            Label{text: "暂无收藏 — 在新闻/研究详情里点 ★" draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
+        }
+        if data_favorites.len() > 0 {
+            Label{text: "共 " + data_favorites.len() + " 条" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+            for i in data_favorites.len() {
+                View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
+                    draw_bg.color: colors.bg_elevated border_radius: 8.0
+                    Label{text: "★ " + data_favorites[i].kind + ": " + data_favorites[i].key draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+                }
             }
         }
     }
@@ -429,16 +474,19 @@ fn render_event_stream(){
         ui.root.set_visible(false)
         ui.root.set_visible(true)
     }
-    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 8 padding: 16
         Label{text: "事件流" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(host.stream.tick 已接线; Phase B-5 改 host.stream.subscribe 持续推送)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
-        View{width: Fill height: Fit flow: Down spacing: 4 padding: 8
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            if data_event_stream.len() == 0 {
-                Label{text: "等待 host.stream.tick 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
-            }
-            if data_event_stream.len() > 0 {
-                Label{text: "已加载 " + data_event_stream.len() + " 条 ticks" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
+        if data_event_stream.len() == 0 {
+            Label{text: "等待 host.stream.tick 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        }
+        if data_event_stream.len() > 0 {
+            Label{text: "最近 " + data_event_stream.len() + " 条" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+            for i in data_event_stream.len() {
+                View{width: Fill height: Fit flow: Down spacing: 2 padding: 6
+                    draw_bg.color: colors.bg_elevated border_radius: 6.0
+                    Label{text: data_event_stream[i].time + "  " + data_event_stream[i].source draw_text.color: colors.secondary draw_text.text_style.font_size: 10}
+                    Label{text: data_event_stream[i].text draw_text.color: colors.ink draw_text.text_style.font_size: 12}
+                }
             }
         }
     }
@@ -453,16 +501,23 @@ fn render_datasource_status(){
         ui.root.set_visible(false)
         ui.root.set_visible(true)
     }
-    ScrollYView{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+    ScrollYView{width: Fill height: Fill flow: Down spacing: 8 padding: 16
         Label{text: "数据源状态" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "(host.datasource.status 已接线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
-        View{width: Fill height: Fit flow: Down spacing: 6 padding: 12
-            draw_bg.color: colors.bg_elevated border_radius: 8.0
-            if data_datasource_status.len() == 0 {
-                Label{text: "等待 host.datasource.status 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 13}
-            }
-            if data_datasource_status.len() > 0 {
-                Label{text: "已加载 " + data_datasource_status.len() + " 个数据源状态" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
+        if data_datasource_status.len() == 0 {
+            Label{text: "等待 host.datasource.status 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 13}
+        }
+        if data_datasource_status.len() > 0 {
+            Label{text: "共 " + data_datasource_status.len() + " 个数据源" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+            for i in data_datasource_status.len() {
+                let status_color = colors.green_up
+                if data_datasource_status[i].status == "WARN" { status_color = colors.red_down }
+                if data_datasource_status[i].status == "ERR" { status_color = colors.red_down }
+                View{width: Fill height: Fit flow: Right spacing: 8 padding: 8
+                    draw_bg.color: colors.bg_elevated border_radius: 6.0
+                    Label{text: "● " + data_datasource_status[i].id draw_text.color: status_color draw_text.text_style.font_size: 13 width: Fill}
+                    Label{text: data_datasource_status[i].status draw_text.color: status_color draw_text.text_style.font_size: 12}
+                    Label{text: data_datasource_status[i].latency_ms + "ms" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+                }
             }
         }
     }
@@ -478,5 +533,4 @@ root := SolidView{width: Fill height: Fill flow: Down spacing: 0 draw_bg.color: 
         if nav.is_home() == true { render_launcher() }
         render_screen_placeholder()
     }
-}
 }
