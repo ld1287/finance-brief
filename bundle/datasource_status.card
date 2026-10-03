@@ -1,0 +1,132 @@
+# ledger finance-brief-datasource-status@0.3.0
+# level:   L0
+# model:   datasource_status
+
+source sina_status    sys.news_status(data_source: "sina",        fields: [status, message, count])
+source tencent_status sys.news_status(data_source: "tencent",     fields: [status, message, count])
+source stooq_status   sys.news_status(data_source: "stooq",       fields: [status, message, count])
+source hyper_status   sys.news_status(data_source: "hyperliquid", fields: [status, message, count])
+source frank_status   sys.news_status(data_source: "frankfurter", fields: [status, message, count])
+source env.locale     sys.locale()
+
+state healthy_count { shape: number, initial: 0 }                                              # host L1 computes and writes
+state last_refresh  { shape: text,   initial: "" }                                              # host-formatted timestamp
+
+event back    { healthy_count: set(0), last_refresh: clear }
+event refresh { healthy_count: clear }                                                          # stub; host intercepts ⇒ datasource.status
+
+copy hdr            { class: vocabulary, en: "Data sources",                                 zh: "数据源" }
+copy back_lbl       { class: vocabulary, en: "‹ Main",                                        zh: "‹ 主界面" }
+copy refresh_lbl    { class: vocabulary, en: "Refresh",                                       zh: "刷新" }
+copy healthy_lbl    { class: vocabulary, en: "Healthy",                                       zh: "健康" }
+copy refresh_at_lbl { class: vocabulary, en: "Last refresh",                                  zh: "上次刷新" }
+copy col_name       { class: vocabulary, en: "Source",                                        zh: "数据源" }
+copy col_kind       { class: vocabulary, en: "Type",                                          zh: "类型" }
+copy col_status     { class: vocabulary, en: "Status",                                        zh: "状态" }
+copy col_message    { class: vocabulary, en: "Last message",                                  zh: "最后消息" }
+copy sina_name      { class: vocabulary, en: "Sina Finance",                                  zh: "新浪财经" }
+copy sina_kind      { class: vocabulary, en: "RSS",                                           zh: "RSS" }
+copy tencent_name   { class: vocabulary, en: "Tencent Quote",                                 zh: "腾讯行情" }
+copy tencent_kind   { class: vocabulary, en: "HTTP",                                          zh: "HTTP" }
+copy stooq_name     { class: vocabulary, en: "Stooq US",                                      zh: "Stooq 美股" }
+copy stooq_kind     { class: vocabulary, en: "CSV",                                           zh: "CSV" }
+copy hyper_name     { class: vocabulary, en: "Hyperliquid",                                   zh: "Hyperliquid" }
+copy hyper_kind     { class: vocabulary, en: "WebSocket",                                     zh: "WebSocket" }
+copy frank_name     { class: vocabulary, en: "Frankfurter",                                   zh: "Frankfurter" }
+copy frank_kind     { class: vocabulary, en: "REST",                                          zh: "REST" }
+copy loading        { class: vocabulary, en: "Fetching status…",                             zh: "正在获取状态…" }
+copy offline        { class: vocabulary, en: "Can't reach the status service",               zh: "无法获取状态" }
+copy empty          { class: vocabulary, en: "No data source status available",              zh: "暂无数据源状态" }
+copy errors_hd      { class: vocabulary, en: "Errors",                                        zh: "故障明细" }
+
+view root Surface(pad: .page) {
+  header
+  meta
+  table_header
+  sina_card
+  tencent_card
+  stooq_card
+  hyper_card
+  frank_card
+  errors
+}
+
+view header Row(align: .center, gap: 10) {
+  Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
+  TextTitle(text: copy.hdr, width: .fill)
+  Chip(text: copy.refresh_lbl, on_tap: refresh, value: "1")
+}
+
+view meta Row(gap: 8) {
+  TextCaption(text: copy.refresh_at_lbl)
+  TextCaption(text: last_refresh)
+  TextCaption(text: copy.healthy_lbl)
+  TextCaption(value: healthy_count, format: .compact)
+  TextCaption(text: "/ 5")
+}
+
+view table_header Row(gap: 6) {
+  TextCaption(text: copy.col_name,    width: .label)
+  TextCaption(text: copy.col_kind,    width: .label)
+  TextCaption(text: copy.col_status,  width: .label)
+  TextCaption(text: copy.col_message, width: .fill)
+}
+
+view sina_card Row(align: .center, gap: 6) {
+  TextRow(text: copy.sina_name,          width: .label)
+  TextRow(text: copy.sina_kind,          width: .label)
+  TextRow(text: sina_status.status,      width: .label)
+  TextCaption(text: sina_status.message, width: .fill)
+  TextCaption(value: sina_status.count,  format: .compact)
+}
+
+view tencent_card Row(align: .center, gap: 6) {
+  TextRow(text: copy.tencent_name,       width: .label)
+  TextRow(text: copy.tencent_kind,       width: .label)
+  TextRow(text: tencent_status.status,   width: .label)
+  TextCaption(text: tencent_status.message, width: .fill)
+  TextCaption(value: tencent_status.count,  format: .compact)
+}
+
+view stooq_card Row(align: .center, gap: 6) {
+  TextRow(text: copy.stooq_name,         width: .label)
+  TextRow(text: copy.stooq_kind,         width: .label)
+  TextRow(text: stooq_status.status,     width: .label)
+  TextCaption(text: stooq_status.message, width: .fill)
+  TextCaption(value: stooq_status.count,  format: .compact)
+}
+
+view hyper_card Row(align: .center, gap: 6) {
+  TextRow(text: copy.hyper_name,         width: .label)
+  TextRow(text: copy.hyper_kind,         width: .label)
+  TextRow(text: hyper_status.status,     width: .label)
+  TextCaption(text: hyper_status.message, width: .fill)
+  TextCaption(value: hyper_status.count,  format: .compact)
+}
+
+view frank_card Row(align: .center, gap: 6) {
+  TextRow(text: copy.frank_name,         width: .label)
+  TextRow(text: copy.frank_kind,         width: .label)
+  TextRow(text: frank_status.status,     width: .label)
+  TextCaption(text: frank_status.message, width: .fill)
+  TextCaption(value: frank_status.count,  format: .compact)
+}
+
+view errors Col {
+  TextCaption(text: copy.errors_hd)
+  when sina_status.status != "ok" {
+    TextCaption(text: sina_status.message)
+  }
+  when tencent_status.status != "ok" {
+    TextCaption(text: tencent_status.message)
+  }
+  when stooq_status.status != "ok" {
+    TextCaption(text: stooq_status.message)
+  }
+  when hyper_status.status != "ok" {
+    TextCaption(text: hyper_status.message)
+  }
+  when frank_status.status != "ok" {
+    TextCaption(text: frank_status.message)
+  }
+}
