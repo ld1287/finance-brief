@@ -1,0 +1,189 @@
+// finance-brief 事件流 stub — #11 of 12 screens (L1)
+// Level:  L1 (per R-3-octoscript-platform.md §5 row 11 — needs §9 conditional expression
+//                    for paused-state label + 分类筛选 chip 激活判定)
+// Role:   header + 暂停/恢复 + 频率显示 + 分类 chip + 左栏 mock 快讯 + 右栏订单簿
+// Spec:   docs/R-3-octoscript-platform.md §5 + §5.1 L1 expression 作用域,
+//         docs/MVP-TODO.md §5 screen #11, .todo §3.5 (事件流 stub 详细架构)
+//
+// Layout (top → bottom):
+//   1. header bar:   返回按钮 + "事件流" 标题 + 暂停/恢复按钮 (L1 conditional)
+//   2. status row:   频率 / tick 计数 / generated_at (host 写入 state.stream.*)
+//   3. 分类 chip 行:  全部 / 宏观 / A股 / 加密 / 外汇 / 链上 (for-loop + active 判定)
+//   4. body 两栏:    左栏 mock 快讯列表 + 右栏订单簿 (5 symbols × 5 档 bid/ask)
+//
+// Capability contracts (per capabilities.toml §1 + Q-B: C 决定 stream.* 4 个):
+//   stream.subscribe     — 启动 ticker + orderbook 数据流 (恢复时调用)
+//   stream.unsubscribe   — 停止数据流 (暂停时调用)
+//   stream.frequency.set — 设置快讯频率 (1s / 5s / 10s, 由 #9 settings 写入)
+//   stream.tick          — 触发一帧 tick, 拉取 ticker + orderbook (per .todo §3.5.5)
+//
+// 数据源 (per Q-E: B + Q-D: B):
+//   - 左栏 ticker: mock 模板池 (12 标题 + 5 分类 + 4 来源), 频率 1s
+//   - 右栏 orderbook: 共用 #6 K 线的 hyperliquid 数据, 频率 500ms/symbol
+//   - 默认 symbols: AAPL/MSFT/TSLA (stooq) + BTC/ETH (hyperliquid), 共 5
+//
+// L1 区别 (per Phase 1 O-5 + Q-A: 11# 是 L1):
+//   - 暂停按钮文案: paused ? "恢复" : "暂停" → §9 conditional expression
+//   - chip active 判定: state.stream.filter_active == c.id → §9 comparison
+//   - 这两个表达式由 host state 计算, 卡片保持 declarative render
+//
+// L1 constraints honored (per O-4 / O-5 发现):
+//   - ✅ 用 {{state.x}} 占位符 + declarative 嵌套结构
+//   - ❌ 不用 `let q = "{{state.q}}"` (trip_planner L2, realize 会失败)
+//   - ❌ 不用 widget-binding operator (makepad_ui_counter 非 canonical)
+//   - ✅ L1 expression 只在 host workflow / state 计算, 卡片只 render
+//
+// State contract (host provides):
+//   state.stream.paused        : bool   — 用户是否暂停 (true → 调 unsubscribe)
+//   state.stream.frequency     : text   — 当前快讯频率 ("1s" / "5s" / "10s")
+//   state.stream.tick_count    : int    — 累计 tick 次数
+//   state.stream.generated_at  : text   — 上次 frame 生成时间 (host 格式化)
+//   state.stream.filters       : list   — 分类 chip [{id, label}, ...] (6 个)
+//   state.stream.filter_active   : text   — 当前激活分类 id (e.g. "全部")
+//   state.stream.ticker        : list   — 快讯 [StreamTickerItem, ...] (per schema)
+//   state.stream.orderbook     : list   — 订单簿 [StreamOrderbookItem, ...] (per schema)
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header: 返回 + 标题 + 暂停/恢复按钮 ──────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "< 主界面"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "事件流"
+        }
+
+        // L1 conditional: paused ? "恢复" : "暂停"
+        // 暂停 → 调 stream.unsubscribe; 恢复 → 调 stream.subscribe
+        Label {
+            text: "{{state.stream.paused}}" ? "恢复" : "暂停"
+            on_tap: || host.call("{{state.stream.paused}}" ? "stream.unsubscribe" : "stream.subscribe")
+        }
+    }
+
+    // ── status row: 频率 / tick 计数 / updated_at ──────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "频率: {{state.stream.frequency}}"
+        }
+
+        Label {
+            text: "tick: {{state.stream.tick_count}}"
+        }
+
+        Label {
+            text: "updated: {{state.stream.generated_at}}"
+        }
+    }
+
+    // ── 分类 chip: 全部 / 宏观 / A股 / 加密 / 外汇 / 链上 ────────────────────────
+    // for-loop over state.stream.filters (host 提供 6 个 chip)
+    // active 字段: L1 比较表达式 state.stream.filter_active == c.id
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        for c in "{{state.stream.filters}}" {
+            Label {
+                text: c.label
+                active: "{{state.stream.filter_active}}" == c.id
+                on_tap: || host.call("stream.tick", {kind: "ticker", category: c.id})
+            }
+        }
+    }
+
+    // ── body 两栏: 左快讯 / 右订单簿 ──────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+        gap: 12
+
+        // ── 左栏: mock 快讯列表 ─────────────────────────────────────────────────
+        View {
+            width: Fit
+            height: Fit
+            flow: Down
+
+            Label {
+                text: "快讯"
+            }
+
+            for t in "{{state.stream.ticker}}" {
+                View {
+                    width: Fill
+                    height: Fit
+                    flow: Down
+
+                    Label {
+                        text: t.ts
+                    }
+
+                    Label {
+                        text: t.title
+                    }
+
+                    Label {
+                        text: t.source + " · #" + t.category
+                    }
+                }
+            }
+        }
+
+        // ── 右栏: 订单簿 (5 symbols × 5 档 bid/ask) ─────────────────────────────
+        View {
+            width: Fit
+            height: Fit
+            flow: Down
+
+            Label {
+                text: "订单簿"
+            }
+
+            for ob in "{{state.stream.orderbook}}" {
+                View {
+                    width: Fill
+                    height: Fit
+                    flow: Down
+
+                    Label {
+                        text: ob.symbol + " mid=" + ob.mid + " spread=" + ob.spread
+                    }
+
+                    for ask in ob.asks {
+                        Label {
+                            text: "卖 " + ask.price + " × " + ask.size
+                        }
+                    }
+
+                    for bid in ob.bids {
+                        Label {
+                            text: "买 " + bid.price + " × " + bid.size
+                        }
+                    }
+
+                    Label {
+                        text: "vol " + ob.cumulative_vol
+                    }
+                }
+            }
+        }
+    }
+}

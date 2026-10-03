@@ -1,0 +1,127 @@
+// finance-brief 研究卡列表 — #4 of 12 screens (L0)
+// Level:  L0 (declarative only, no derived arithmetic)
+// Role:   topic chip filter + research card list + status + refresh
+// Spec:   docs/R-4-l0-cards.md §3 row 4, MVP-TODO.md §5 screen #4
+//
+// Layout (top → bottom):
+//   1. header bar:  title / back / refresh
+//   2. topic chip row:  全部 / 宏观 / 行业 / 公司 / 加密  (host resolves state.research_tags)
+//   3. status line (e.g. last-synced, error copy)
+//   4. research card list, each row → research_detail with id
+//
+// Capability contracts (per capabilities.toml §1 / §2):
+//   research.list    — reload research cards (optional tag filter via {tag: t.id})
+//   research.read    — read full note by id (host resolves on row tap)
+//
+// L0 constraints honored:
+//   - no `let q = "{{state.q}}"` style trip_planner L2 binding
+//   - no widget-binding operator (canonical fixtures use plain nested widgets)
+//   - all text values are `{{state.x}}` placeholders, host resolves at realize
+//   - chip active state uses a single == predicate, no derived arithmetic
+//   - inner per-card tag loop reads from card.tags (host-provided list)
+//
+// State contract (host provides):
+//   state.app_subtitle           : text  — header subtitle copy
+//   state.research_tags          : list  — topic chips, each {id, label}
+//   state.research_tag_active    : text  — id of currently active chip
+//   state.research_status        : text  — status line (synced / loading / err)
+//   state.research_cards         : list  — research entries, each {id, title, source, ts, tags, preview}
+//   state.last_synced            : text  — footer timestamp copy
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header ──────────────────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "研究卡"
+        }
+
+        Label {
+            text: "{{state.app_subtitle}}"
+        }
+
+        Label {
+            text: "< 返回"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "刷新"
+            on_tap: || host.call("research.list")
+        }
+    }
+
+    // ── 主题 chip 行：全部 / 宏观 / 行业 / 公司 / 加密 ──────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        for t in "{{state.research_tags}}" {
+            Label {
+                text: t.label
+                active: "{{state.research_tag_active}}" == t.id
+                on_tap: || host.call("research.list", {tag: t.id})
+            }
+        }
+    }
+
+    // ── 状态指示 ──────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.research_status}}"
+    }
+
+    // ── 研究卡列表 ────────────────────────────────────────────────────────
+    for c in "{{state.research_cards}}" {
+        View {
+            width: Fill
+            height: Fit
+            flow: Down
+
+            // 主标题
+            Label {
+                text: c.title
+            }
+
+            // 来源 + 时间（declarative concat, host provides source/ts）
+            Label {
+                text: c.source + " · " + c.ts
+            }
+
+            // 标签行（host-bundled, plain nested widgets）
+            View {
+                width: Fill
+                height: Fit
+                flow: Right
+
+                for tg in c.tags {
+                    Label {
+                        text: "#" + tg
+                    }
+                }
+            }
+
+            // 摘要（host 截断到 80 字）
+            Label {
+                text: c.preview
+            }
+
+            // 跳详情
+            on_tap: || nav.push("research_detail", {id: c.id})
+        }
+    }
+
+    // ── footer ──────────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.last_synced}}"
+    }
+}

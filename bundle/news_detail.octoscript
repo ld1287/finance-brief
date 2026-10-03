@@ -1,0 +1,122 @@
+// finance-brief 新闻详情 — #3 of 12 screens (L0)
+// Level:  L0 (declarative only, no derived arithmetic)
+// Role:   单条新闻详情 + 摘要 + 标签 + 收藏 + 3 条相关新闻
+// Spec:   docs/R-4-l0-cards.md §3 row 3, MVP-TODO.md §5 screen #3
+//
+// Layout (top → bottom):
+//   1. header bar:  back / favorite toggle
+//   2. title (headline)
+//   3. meta line:   source · ts
+//   4. summary (full body)
+//   5. tags chips (e.g. #宏观 #A股)
+//   6. related section: header + 3 related items
+//
+// Capability contracts (per capabilities.toml §14 / §2):
+//   fav.toggle    — toggle favorite for current key (input: {key, add})
+//   news.read     — read detail by key (host resolves on push)
+//
+// L0 constraints honored:
+//   - no `let q = "{{state.q}}"` style trip_planner L2 binding
+//   - no walrus binding operator (canonical fixtures use plain nested widgets)
+//   - all text values are `{{state.x}}` placeholders, host resolves at realize
+//   - no `{{ }}` arithmetic; favorite label is fully host-supplied
+//
+// State contract (host provides):
+//   state.news_detail.fav_state  : text  — toggle label copy (e.g. "☆ 收藏" / "★ 已收藏")
+//   state.news_detail.key        : text  — stable key for news.read / fav.toggle
+//   state.news_detail.title      : text  — headline
+//   state.news_detail.source     : text  — publisher
+//   state.news_detail.ts         : text  — formatted publish time
+//   state.news_detail.summary    : text  — full body
+//   state.news_detail.tags       : list  — tag strings
+//   state.news_detail.related    : list  — 3 entries, each {key, title, source, ts}
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header: 返回 + 收藏 ────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "< 新闻简报"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "{{state.news_detail.fav_state}}"
+            on_tap: || host.call("fav.toggle", {key: "{{state.news_detail.key}}", add: true})
+        }
+    }
+
+    // ── title ─────────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.news_detail.title}}"
+    }
+
+    // ── meta: 来源 · 时间 ──────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "{{state.news_detail.source}}"
+        }
+
+        Label {
+            text: " · "
+        }
+
+        Label {
+            text: "{{state.news_detail.ts}}"
+        }
+    }
+
+    // ── summary ───────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.news_detail.summary}}"
+    }
+
+    // ── tags chips ────────────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        for tag in "{{state.news_detail.tags}}" {
+            Label {
+                text: "#" + tag
+            }
+        }
+    }
+
+    // ── 相关新闻: 3 条 ─────────────────────────────────────────────────────
+    Label {
+        text: "相关新闻"
+    }
+
+    for r in "{{state.news_detail.related}}" {
+        View {
+            width: Fill
+            height: Fit
+            flow: Down
+
+            Label {
+                text: r.title
+            }
+
+            Label {
+                text: r.source + " · " + r.ts
+            }
+
+            on_tap: || nav.push("news_detail", {key: r.key})
+        }
+    }
+}

@@ -1,0 +1,125 @@
+// finance-brief 研究卡详情 — #5 of 12 screens (L0)
+// Level:  L0 (declarative only, no derived arithmetic)
+// Role:   单条研究卡详情 + 标题 + meta + 多段正文 + 标签 + 关联 + 收藏
+// Spec:   docs/R-4-l0-cards.md §3 row 5, MVP-TODO.md §5 screen #5
+//
+// Layout (top → bottom):
+//   1. header bar:  back / favorite toggle
+//   2. title (note headline)
+//   3. meta line:   source · ts
+//   4. multi-paragraph body (host pre-splits body into paragraphs)
+//   5. tags chips
+//   6. related section: header + 2 related items
+//
+// Capability contracts (per capabilities.toml §1 / §2):
+//   fav.toggle    — toggle favorite for current key (input: {key, add})
+//   research.read — read full note by id (host resolves on push)
+//
+// L0 constraints honored:
+//   - no `let q = "{{state.q}}"` style trip_planner L2 binding
+//   - no walrus binding operator (canonical fixtures use plain nested widgets)
+//   - all text values are `{{state.x}}` placeholders, host resolves at realize
+//   - no `{{ }}` arithmetic; favorite label is fully host-supplied
+//   - multi-paragraph body uses host-bundled `paragraphs` list, not derived split
+//
+// State contract (host provides):
+//   state.research_detail.fav_state  : text  — toggle label copy (e.g. "☆ 收藏" / "★ 已收藏")
+//   state.research_detail.id         : text  — stable note id for fav.toggle
+//   state.research_detail.title      : text  — note headline
+//   state.research_detail.source     : text  — publisher / author
+//   state.research_detail.ts         : text  — formatted publish time
+//   state.research_detail.paragraphs : list  — body split into strings by host
+//   state.research_detail.tags       : list  — topic tag strings
+//   state.research_detail.related    : list  — 2 entries, each {id, title, source, ts}
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header: 返回 + 收藏 ────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "< 研究卡"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "{{state.research_detail.fav_state}}"
+            on_tap: || host.call("fav.toggle", {key: "{{state.research_detail.id}}", add: true})
+        }
+    }
+
+    // ── title ─────────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.research_detail.title}}"
+    }
+
+    // ── meta: 来源 · 时间 ──────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "{{state.research_detail.source}}"
+        }
+
+        Label {
+            text: " · "
+        }
+
+        Label {
+            text: "{{state.research_detail.ts}}"
+        }
+    }
+
+    // ── 多段正文（host pre-splits body into paragraphs） ───────────────────
+    for p in "{{state.research_detail.paragraphs}}" {
+        Label {
+            text: p
+        }
+    }
+
+    // ── tags chips ────────────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        for tag in "{{state.research_detail.tags}}" {
+            Label {
+                text: "#" + tag
+            }
+        }
+    }
+
+    // ── 关联研究卡: 2 条 ───────────────────────────────────────────────────
+    Label {
+        text: "关联研究卡"
+    }
+
+    for r in "{{state.research_detail.related}}" {
+        View {
+            width: Fill
+            height: Fit
+            flow: Down
+
+            Label {
+                text: r.title
+            }
+
+            Label {
+                text: r.source + " · " + r.ts
+            }
+
+            on_tap: || nav.push("research_detail", {id: r.id})
+        }
+    }
+}

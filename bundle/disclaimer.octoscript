@@ -1,0 +1,150 @@
+// finance-brief 免责声明 — #10 of 12 screens (L0)
+// Level:  L0 (declarative only, no derived arithmetic)
+// Role:   Static disclaimer / legal copy screen — shown from settings > 关于 > 免责声明
+// Spec:   docs/R-4-l0-cards.md §3 row 10, MVP-TODO.md §5 screen #10
+//
+// Layout (top → bottom):
+//   1. header bar:  back / title
+//   2. section 1 — 用途 (purpose)
+//   3. section 2 — 不构成投资建议 (no investment advice)
+//   4. section 3 — 数据准确性 (data accuracy)
+//   5. section 4 — 责任限制 (liability)
+//   6. section 5 — 版本 (version + data sources)
+//   7. actions: 同意并继续 / 不同意
+//
+// L0 constraints honored:
+//   - no `let q = "{{state.q}}"` style trip_planner L2 binding
+//   - no walrus binding operator (canonical fixtures use plain nested widgets)
+//   - all text values are `{{state.x}}` placeholders, host resolves at realize
+//   - no `{{ }}` arithmetic; section copy is fully host-supplied
+//   - 5 sections rendered as 5 View blocks (section_intro / section_no_advice /
+//     section_accuracy / section_liability / section_version); each holds 2 Labels
+//
+// Capability contracts: NONE — fully static content screen.
+//
+// State contract (host provides):
+//   state.disclaimer.intro_title         : text  — section 1 heading
+//   state.disclaimer.intro_body          : text  — section 1 body (purpose)
+//   state.disclaimer.advice_title        : text  — section 2 heading
+//   state.disclaimer.advice_body         : text  — section 2 body (no advice)
+//   state.disclaimer.accuracy_title      : text  — section 3 heading
+//   state.disclaimer.accuracy_body       : text  — section 3 body (accuracy)
+//   state.disclaimer.liability_title     : text  — section 4 heading
+//   state.disclaimer.liability_body      : text  — section 4 body (liability)
+//   state.disclaimer.version             : text  — version string (e.g. "0.3.0")
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header: 返回 + 标题 ───────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "< 设置"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "免责声明"
+        }
+    }
+
+    // ── section 1: 用途 ──────────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Down
+
+        Label {
+            text: "{{state.disclaimer.intro_title}}"
+        }
+
+        Label {
+            text: "{{state.disclaimer.intro_body}}"
+        }
+    }
+
+    // ── section 2: 不构成投资建议 ────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Down
+
+        Label {
+            text: "{{state.disclaimer.advice_title}}"
+        }
+
+        Label {
+            text: "{{state.disclaimer.advice_body}}"
+        }
+    }
+
+    // ── section 3: 数据准确性 ────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Down
+
+        Label {
+            text: "{{state.disclaimer.accuracy_title}}"
+        }
+
+        Label {
+            text: "{{state.disclaimer.accuracy_body}}"
+        }
+    }
+
+    // ── section 4: 责任限制 ──────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Down
+
+        Label {
+            text: "{{state.disclaimer.liability_title}}"
+        }
+
+        Label {
+            text: "{{state.disclaimer.liability_body}}"
+        }
+    }
+
+    // ── section 5: 版本 + 数据源 ─────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Down
+
+        Label {
+            text: "finance-brief v{{state.disclaimer.version}}"
+        }
+
+        Label {
+            text: "数据源: sina / tencent / stooq / hyperliquid / frankfurter"
+        }
+    }
+
+    // ── actions: 同意 / 不同意 ───────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "同意并继续"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "不同意"
+            on_tap: || nav.pop_to_root()
+        }
+    }
+}

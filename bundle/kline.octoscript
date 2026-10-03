@@ -1,0 +1,136 @@
+// finance-brief K线看盘 — #6 of 12 screens (L1)
+// Level:  L1 (per R-3-octoscript-platform.md §5 row 6 — needs §9 arithmetic expression
+//                    for 涨跌幅 / 振幅 / 最新价派生)
+// Role:   symbol header + 周期 chip + K线 widget + L1 计算后统计字段
+// Spec:   docs/R-3-octoscript-platform.md §5 + §5.1 L1 expression 作用域,
+//         docs/KLINE-WIDGET.md (mod.plot.CandlestickChart 走 PlotView CPU 路径)
+// Ref:    docs/MVP-TODO.md §5 screen #6, Q-A: 6# 是 L1, Q-R2: A
+//
+// Layout (top → bottom):
+//   1. header bar:  返回按钮 + symbol 标题 (e.g. "AAPL K线")
+//   2. 周期 chip 行:  1m / 5m / 1h / 1d (for-loop over state.kline.periods)
+//   3. L1 统计行:   最新价 / 涨跌幅 / 振幅 (host 通过 §9 expression 预计算)
+//   4. K线 widget: CandlestickChart (mod.plot.CandlestickChart per KLINE-WIDGET.md)
+//   5. 成交量副图: 简化 bar (volume 数字 + 文字)
+//
+// Capability contracts (per capabilities.toml §1 / §2):
+//   quote.candles — 拉取 OHLCV 序列 (参数 {symbol, period, count: 100})
+//
+// L1 区别 (per Phase 1 O-5 + Q-A):
+//   - change_pct = (last - prev_close) / prev_close   → §9 arithmetic expression
+//   - amplitude   = (high - low) / low                 → §9 arithmetic expression
+//   - 这两个表达式由 host workflow 计算后写入 state.kline.change_pct / .amplitude,
+//     卡片本身保持 declarative render（host state = 唯一真值源）
+//
+// L1 constraints honored (per O-4 / O-5 发现):
+//   - ✅ 用 {{state.x}} 占位符 + declarative 嵌套结构
+//   - ❌ 不用 `let q = "{{state.q}}"` (trip_planner L2, realize 会失败)
+//   - ❌ 不用 widget-binding operator (makepad_ui_counter 非 canonical)
+//   - ✅ L1 expression 只在 host workflow / state 计算,卡片只 render
+//
+// State contract (host provides):
+//   state.kline.symbol         : text   — 当前展示的 ticker (e.g. "AAPL")
+//   state.kline.periods        : list   — 周期选项 [{id: "1m", label: "1m"}, ...]
+//   state.kline.period_active  : text   — 当前激活周期 id (e.g. "1d")
+//   state.kline.last           : text   — 最新价 (host 格式化后字符串)
+//   state.kline.change_pct     : text   — 涨跌幅 % (host 算 (last-prev)/prev)
+//   state.kline.amplitude      : text   — 振幅 %   (host 算 (high-low)/low)
+//   state.kline.bars           : list   — OHLCV bars [{timestamp, o, h, l, c, v}, ...]
+//                                       — host 用它驱动 CandlestickChart.set_data()
+//   state.kline.volume         : text   — 累计成交量 (格式化)
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header: 返回 + symbol 标题 ────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "< 主界面"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "{{state.kline.symbol}} K线"
+        }
+
+        Label {
+            text: "{{state.kline.period_active}}"
+        }
+
+        Label {
+            text: "刷新"
+            on_tap: || host.call("quote.candles", {symbol: "{{state.kline.symbol}}", period: "{{state.kline.period_active}}", count: 100})
+        }
+    }
+
+    // ── 周期 chip: 1m / 5m / 1h / 1d ──────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        for p in "{{state.kline.periods}}" {
+            Label {
+                text: p.label
+                active: "{{state.kline.period_active}}" == p.id
+                on_tap: || host.call("quote.candles", {symbol: "{{state.kline.symbol}}", period: p.id, count: 100})
+            }
+        }
+    }
+
+    // ── L1 统计行: 最新价 / 涨跌幅 / 振幅 (host §9 expression 已算) ────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "最新: {{state.kline.last}}"
+        }
+
+        Label {
+            text: "涨跌: {{state.kline.change_pct}}"
+        }
+
+        Label {
+            text: "振幅: {{state.kline.amplitude}}"
+        }
+    }
+
+    // ── K线 widget: mod.plot.CandlestickChart (per KLINE-WIDGET.md §1) ───────
+    // 走 PlotView CPU 路径 (2 primitives / candle, ~120fps @ 200 bars)
+    // host 在 workflow 里调用 chart.set_data(opens, highs, lows, closes)
+    // bars 数据来源: state.kline.bars (CandleSeries per candle.schema.json)
+    CandlestickChart {
+        width: Fill
+        height: 320
+        title: "{{state.kline.symbol}} — {{state.kline.period_active}}"
+        demo_data: false
+        draw_bg: { color: #xffffff }
+        draw_grid: { color: #xe4e4e4 }
+        draw_text: { color: #x333333 }
+    }
+
+    // ── 成交量副图: 简化显示 ──────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "成交量: {{state.kline.volume}}"
+        }
+
+        Label {
+            text: "100 根"
+        }
+    }
+}
