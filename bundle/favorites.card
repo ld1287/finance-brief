@@ -1,0 +1,54 @@
+# ledger finance-brief-favorites@0.3.0
+# level:   L0
+# model:   favorites
+
+source watch     sys.watchlist(fields: [ticker, name, last, change, pct, open, high, low, prev, volume, mktcap, pe, currency, exchange, has])
+source env.locale sys.locale()
+
+state selected { shape: text, initial: "" }            # "" ⇒ list, ticker ⇒ detail
+state editing  { shape: enum[none, add], initial: .none }
+
+event back         { selected: clear }
+event open_detail  { selected: set($value) }
+event add_rem      { editing: set(.add) }
+event typing       { editing: set(.none) }
+event remove_item  { selected: clear, editing: set(.none) }
+
+copy hdr          { class: vocabulary, en: "收藏",           zh: "收藏" }
+copy back_lbl     { class: vocabulary, en: "‹ 主界面",        zh: "‹ 主界面" }
+copy lbl_last     { class: vocabulary, en: "最新价",         zh: "最新价" }
+copy lbl_pct      { class: vocabulary, en: "涨跌幅",         zh: "涨跌幅" }
+copy lbl_vol      { class: vocabulary, en: "成交量",         zh: "成交量" }
+copy btn_remove   { class: vocabulary, en: "移除",           zh: "移除" }
+copy btn_add      { class: vocabulary, en: "+ 添加",         zh: "+ 添加" }
+copy empty_hint   { class: vocabulary, en: "暂无收藏",       zh: "暂无收藏" }
+
+view root  Surface(pad: .page) {
+             Row(align: .center, gap: 10, on_tap: back) { TextRow(text: copy.back_lbl) }
+             TextTitle(text: copy.hdr)
+
+             when watch.$state == .ready {
+               for w, i in watch key w.ticker {
+                 Row(align: .center, gap: 8) {
+                   Row(align: .center, gap: 8, width: .fill, on_tap: open_detail, value: w.ticker) {
+                     TextRow(text: w.ticker, width: .label)
+                     TextRow(text: w.name, width: .fill)
+                     TextValue(value: w.last, format: .money)
+                     TextValue(value: w.pct, format: .signed_pct, tint: w.change)
+                   }
+                   when w.has == "1" {
+                     Chip(text: copy.btn_remove, on_tap: remove_item, value: w.ticker, tone: .danger, width: .fit)
+                   }
+                 }
+                 Rule()
+               }
+             }
+             when watch.$state == .pending {
+               TextBody(text: copy.empty_hint)
+             }
+             when watch.$state == .failed {
+               TextBody(text: copy.empty_hint)
+             }
+
+             Chip(text: copy.btn_add, on_tap: add_rem, value: "1")
+           }
