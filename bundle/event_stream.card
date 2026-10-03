@@ -1,0 +1,108 @@
+# ledger finance-brief-event-stream@0.3.0
+# level:   L0
+# model:   event_stream
+
+source ticker     sys.news_digest(count: 30, fields: [id, title, summary, publisher, url, published_at])
+source orderbook  sys.quote(ticker: state.orderbook_symbol, fields: [ticker, last, change, pct, volume, currency, exchange])
+source env.locale sys.locale()
+
+state paused           { shape: enum[running, paused],                                  initial: .running }
+state filter_active    { shape: enum[all, macro, a_share, crypto, fx, on_chain],        initial: .all }
+state orderbook_symbol { shape: text,                                                   initial: "BTC" }
+
+event back         { paused: set(.running), filter_active: set(.all) }
+event toggle_pause { paused: toggle }
+event set_filter   { filter_active: set($value) }
+event set_symbol   { orderbook_symbol: set($value) }
+
+copy hdr          { class: vocabulary, en: "Event stream",                              zh: "事件流" }
+copy back_lbl     { class: vocabulary, en: "‹ Main",                                    zh: "‹ 主界面" }
+copy pause_lbl    { class: vocabulary, en: "Pause",                                     zh: "暂停" }
+copy resume_lbl   { class: vocabulary, en: "Resume",                                    zh: "恢复" }
+copy freq_lbl     { class: vocabulary, en: "Frequency",                                 zh: "频率" }
+copy tick_lbl     { class: vocabulary, en: "Tick count",                                zh: "tick 计数" }
+copy upd_lbl      { class: vocabulary, en: "Last update",                               zh: "上次更新" }
+copy filter_all   { class: vocabulary, en: "All",                                       zh: "全部" }
+copy filter_mac   { class: vocabulary, en: "Macro",                                     zh: "宏观" }
+copy filter_a     { class: vocabulary, en: "A-shares",                                  zh: "A 股" }
+copy filter_cry   { class: vocabulary, en: "Crypto",                                    zh: "加密" }
+copy filter_fx    { class: vocabulary, en: "FX",                                        zh: "外汇" }
+copy filter_oc    { class: vocabulary, en: "On-chain",                                  zh: "链上" }
+copy ticker_hd    { class: vocabulary, en: "Ticker (mock)",                             zh: "快讯 (mock)" }
+copy ob_hd        { class: vocabulary, en: "Order book (stub)",                         zh: "订单簿 (stub)" }
+copy loading      { class: vocabulary, en: "Fetching stream…",                          zh: "正在获取事件流…" }
+copy offline      { class: vocabulary, en: "Can't reach the stream service",            zh: "无法获取事件流" }
+copy empty        { class: vocabulary, en: "No events in this category",                 zh: "该分类暂无事件" }
+copy summary_lbl  { class: vocabulary, en: "Summary",                                   zh: "摘要" }
+
+view root Surface(pad: .page) {
+  header
+  status
+  filters
+  body
+}
+
+view header Row(align: .center, gap: 10) {
+  Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
+  TextTitle(text: copy.hdr)
+  Chip(text: copy.pause_lbl,  on_tap: toggle_pause, value: "1", active: paused == .running)
+  Chip(text: copy.resume_lbl, on_tap: toggle_pause, value: "1", active: paused == .paused, tone: .danger)
+}
+
+view status Row(gap: 8) {
+  TextCaption(text: copy.freq_lbl)
+  TextCaption(text: copy.tick_lbl)
+  TextCaption(text: copy.upd_lbl)
+}
+
+view filters Row(gap: 6) {
+  Chip(text: copy.filter_all, on_tap: set_filter, value: .all,      active: filter_active == .all)
+  Chip(text: copy.filter_mac, on_tap: set_filter, value: .macro,    active: filter_active == .macro)
+  Chip(text: copy.filter_a,   on_tap: set_filter, value: .a_share,  active: filter_active == .a_share)
+  Chip(text: copy.filter_cry, on_tap: set_filter, value: .crypto,   active: filter_active == .crypto)
+  Chip(text: copy.filter_fx,  on_tap: set_filter, value: .fx,       active: filter_active == .fx)
+  Chip(text: copy.filter_oc,  on_tap: set_filter, value: .on_chain, active: filter_active == .on_chain)
+}
+
+view body Row(gap: 12, width: .fill) {
+  ticker_col
+  orderbook_col
+}
+
+view ticker_col Col {
+  TextCaption(text: copy.ticker_hd)
+  when ticker.$state == .pending { TextBody(text: copy.loading) }
+  when ticker.$state == .failed  { TextBody(text: copy.offline) }
+  when ticker.$state == .ready {
+    for t, i in ticker key t.id {
+      Card(on_tap: set_filter, value: .all) {
+        Col {
+          TextCaption(text: t.published_at)
+          TextBody(text: t.title, width: .fill)
+          TextCaption(text: t.publisher)
+        }
+      }
+      Rule()
+    }
+  }
+}
+
+view orderbook_col Col {
+  TextCaption(text: copy.ob_hd)
+  Row(gap: 6) {
+    TextCaption(text: orderbook_symbol, width: .fill)
+    Chip(text: "BTC",  on_tap: set_symbol, value: "BTC",  active: orderbook_symbol == "BTC")
+    Chip(text: "ETH",  on_tap: set_symbol, value: "ETH",  active: orderbook_symbol == "ETH")
+    Chip(text: "AAPL", on_tap: set_symbol, value: "AAPL", active: orderbook_symbol == "AAPL")
+  }
+  when orderbook.$state == .pending { TextBody(text: copy.loading) }
+  when orderbook.$state == .failed  { TextBody(text: copy.offline) }
+  when orderbook.$state == .ready {
+    Col {
+      TextCaption(value: orderbook.last,   format: .money)
+      TextCaption(value: orderbook.pct,    format: .signed_pct)
+      TextCaption(value: orderbook.volume, format: .compact)
+      TextCaption(text: orderbook.exchange)
+    }
+  }
+}
