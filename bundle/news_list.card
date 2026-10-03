@@ -1,0 +1,49 @@
+# ledger finance-brief-news-list@0.3.0
+# level:   L0
+# model:   news_list
+
+source lead         sys.news(count: 1, fields: [id, title, source, ts])
+source feed         sys.news(count: 20, offset: 1, fields: [id, title, source, ts])
+source env.locale   sys.locale()
+
+state selected { shape: text, initial: "" }        # "" ⇒ list, else story id
+
+event open_story { selected: set($value) }
+event back       { selected: clear }
+
+copy masthead  { class: vocabulary, en: "新闻简报",     zh: "新闻简报" }
+copy src       { class: vocabulary, en: "新浪财经 RSS",  zh: "新浪财经 RSS" }
+copy back_lbl  { class: vocabulary, en: "‹ 主界面",      zh: "‹ 主界面" }
+copy loading   { class: vocabulary, en: "正在获取新闻…", zh: "正在获取新闻…" }
+copy offline   { class: vocabulary, en: "无法获取新闻",  zh: "无法获取新闻" }
+
+view root  Surface(pad: .page) { stream }
+
+view stream  Col {
+               when feed.$state == .pending { TextBody(text: copy.loading) }
+               when feed.$state == .failed  { TextBody(text: copy.offline) }
+               masthead
+               headline
+               feed_list
+             }
+
+view masthead  Col(gap: 2) {
+                 TextCaption(text: copy.src)
+                 TextTitle(text: copy.masthead)
+               }
+
+view headline  Card(on_tap: open_story, value: lead.0.id) {
+                 TextCaption(text: "焦点")
+                 TextBody(text: lead.0.title, width: .fill)
+                 TextCaption(text: lead.0.source)
+               }
+
+view feed_list  Panel {
+                 for n, i in feed key n.id {
+                   Row(align: .center, gap: 10, on_tap: open_story, value: n.id) {
+                     TextRow(text: n.title, width: .fill)
+                     TextCaption(text: n.source)
+                   }
+                   Rule()
+                 }
+               }

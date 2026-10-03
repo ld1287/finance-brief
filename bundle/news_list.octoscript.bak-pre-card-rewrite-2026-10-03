@@ -1,0 +1,105 @@
+// finance-brief 新闻简报列表 — #2 of 12 screens (L0)
+// Level:  L0 (declarative only, no derived arithmetic)
+// Role:   5-category chip filter + news rows + status + refresh
+// Spec:   docs/R-4-l0-cards.md §3 row 2, MVP-TODO.md §5 screen #2
+//
+// Layout (top → bottom):
+//   1. header bar:  title / back / refresh
+//   2. 5 category chips:  全部 / 宏观 / A股 / 加密 / 外汇
+//   3. status line (e.g. last-synced, error copy)
+//   4. news row list, each row → news_detail with key
+//
+// Capability contracts (per capabilities.toml §1 / §2):
+//   news.refresh   — reload news (optional tab filter via {tab: c.id})
+//   news.read      — read detail by key (host resolves on row tap)
+//
+// L0 constraints honored:
+//   - no `let q = "{{state.q}}"` style trip_planner L2 binding
+//   - no widget-binding operator (canonical fixtures use plain nested widgets)
+//   - all text values are `{{state.x}}` placeholders, host resolves at realize
+//   - no `{{ }}` arithmetic; chip active state uses a single == predicate
+//
+// State contract (host provides):
+//   state.app_subtitle         : text  — header subtitle copy
+//   state.news_filters         : list  — 5 entries, each {id, label}
+//   state.news_filter_active   : text  — id of currently active chip
+//   state.news_status          : text  — status line (synced / loading / err)
+//   state.news_rows            : list  — news entries, each {key, title, source, ts}
+//   state.last_synced          : text  — footer timestamp copy
+
+View {
+    width: Fill
+    height: Fill
+    flow: Down
+    padding: 16
+    gap: 1
+
+    // ── header ──────────────────────────────────────────────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        Label {
+            text: "新闻简报"
+        }
+
+        Label {
+            text: "{{state.app_subtitle}}"
+        }
+
+        Label {
+            text: "< 返回"
+            on_tap: || nav.pop()
+        }
+
+        Label {
+            text: "刷新"
+            on_tap: || host.call("news.refresh")
+        }
+    }
+
+    // ── 5 分类 chip：全部 / 宏观 / A股 / 加密 / 外汇 ──────────────────────
+    View {
+        width: Fill
+        height: Fit
+        flow: Right
+
+        for c in "{{state.news_filters}}" {
+            Label {
+                text: c.label
+                active: "{{state.news_filter_active}}" == c.id
+                on_tap: || host.call("news.refresh", {tab: c.id})
+            }
+        }
+    }
+
+    // ── 状态指示 ──────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.news_status}}"
+    }
+
+    // ── 新闻列表 ──────────────────────────────────────────────────────────
+    for r in "{{state.news_rows}}" {
+        View {
+            width: Fill
+            height: Fit
+            flow: Down
+
+            Label {
+                text: r.title
+            }
+
+            Label {
+                text: r.source + " · " + r.ts
+            }
+
+            on_tap: || nav.push("news_detail", {key: r.key})
+        }
+    }
+
+    // ── footer ──────────────────────────────────────────────────────────────
+    Label {
+        text: "{{state.last_synced}}"
+    }
+}
