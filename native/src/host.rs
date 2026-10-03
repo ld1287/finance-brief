@@ -236,3 +236,65 @@ mod tests {
         let _ = p;
     }
 }
+
+
+// --- v2 capability runtime stub (per .todo §5 + Phase 2 fix) ---
+//
+// v1 host.rs only models `SplashVm` + `Service` enum for the splash VM.
+// v2 adapters (per Q-C: B) want an `octoscript_capabilities`-style
+// `CapabilityRuntime` with `register_validated_json_tool(name, contract, handler)`.
+//
+// Rather than pull in the heavy `octoscript-capabilities` dep tree
+// (makepad-script git rev + blake3 + keyring + Linux-only deps), we model
+// the surface as a tiny stub. The real runtime is owned by the splash VM
+// (or future OctoSense host); this layer just collects registrations so
+// `cargo build` passes.
+
+use serde_json::Value;
+
+/// Minimal JSON tool contract — input + output JSON Schemas.
+/// Real `octoscript_capabilities::JsonToolContract::new` returns `Result<Self, _>`
+/// (validates against a meta-schema). We skip validation here; the host
+/// runtime validates at boot.
+#[derive(Clone, Default)]
+pub struct JsonToolContract {
+    pub input_schema: Value,
+    pub output_schema: Value,
+}
+
+impl JsonToolContract {
+    pub fn new(input_schema: Value, output_schema: Value) -> Self {
+        Self { input_schema, output_schema }
+    }
+}
+
+/// Registered tool handler. Generic over the future type so async fns are
+/// accepted (Box::pin captures the produced future).
+pub type AsyncHandler = Box<
+    dyn Fn(Value) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Value, String>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// Capability runtime — collects (name, contract, handler) triples.
+#[derive(Default)]
+pub struct CapabilityRuntime {
+    pub tools: Vec<(String, JsonToolContract, AsyncHandler)>,
+}
+
+impl CapabilityRuntime {
+    /// Register one JSON tool. Generic signature accepts both `fn` pointer
+    /// and `async fn` via closure coercion.
+    pub fn register_validated_json_tool<F, Fut>(
+        &mut self,
+        name: &str,
+        contract: JsonToolContract,
+        handler: F,
+    ) where
+        F: Fn(Value) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<Value, String>> + Send + 'static,
+    {
+        let boxed: AsyncHandler = Box::new(move |v| Box::pin(handler(v)));
+        self.tools.push((name.to_string(), contract, boxed));
+    }
+}
