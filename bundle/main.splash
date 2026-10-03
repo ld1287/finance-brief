@@ -149,12 +149,17 @@ fn render_launcher(){
         View{width: Fill height: Fit flow: Right spacing: 12
             render_tile("新闻简报", "news_list")
             render_tile("研究卡",   "research_list")
-            render_tile("行情看盘", "quote_list")
+            render_tile("行情看盘", "kline")
         }
         View{width: Fill height: Fit flow: Right spacing: 12
+            render_tile("新闻详情", "news_detail")
+            render_tile("研究详情", "research_detail")
             render_tile("收藏",     "favorites")
+        }
+        View{width: Fill height: Fit flow: Right spacing: 12
             render_tile("设置",     "settings")
             render_tile("事件流",   "event_stream")
+            render_tile("免责声明", "disclaimer")
         }
         View{width: Fill height: Fit flow: Down spacing: 6 padding: 16
             Label{text: "备用槽" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
@@ -163,11 +168,125 @@ fn render_launcher(){
     }
 }
 
-// ── screen placeholder (real screens are .card files loaded by host) ──
+// ── 6 splash-inline screens (.card L0 bridge deferred) ──────────
+// Each render_X returns a screen body; render_screen_placeholder dispatches
+// by nav.current. Stub data only — host.X wires (news.refresh /
+// research.list / quote.candles) plug in once octoscript#56 lands.
+// splash has no `else if`; sequential `if` + `return` chains.
+
 fn render_screen_placeholder(){
+    if nav.current == "news_list"       { render_news_list()      return }
+    if nav.current == "news_detail"     { render_news_detail()    return }
+    if nav.current == "research_list"   { render_research_list()  return }
+    if nav.current == "research_detail" { render_research_detail() return }
+    if nav.current == "kline"           { render_kline()          return }
+    if nav.current == "disclaimer"      { render_disclaimer()     return }
     View{width: Fill height: Fill flow: Down spacing: 8 padding: 16
         Label{text: nav.current draw_text.color: colors.ink draw_text.text_style.font_size: 18}
-        Label{text: "(host loads the corresponding .card)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        Label{text: "(splash-inline stub; .card L0 not bridged yet)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+    }
+}
+
+// ── news list (splash stub) ────────────────────────────────────
+fn render_news_list(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "新闻简报" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.news.refresh 接入后此处显示 30 条)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "• 新浪财经头条  14:32" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "• 美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "• 央行公开市场净投放 1000 亿" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        }
+        ButtonFlat{text: "查看详情 →" on_click: || nav.push("news_detail")
+            draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
+            draw_text +: {color: colors.accent}}
+    }
+}
+
+// ── news detail (splash stub) ──────────────────────────────────
+fn render_news_detail(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "新闻详情" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
+            Label{text: "14:32 · 新浪财经" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            Label{text: "本次会议与会者就通胀路径展开讨论，多数认为..." draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        }
+    }
+}
+
+// ── research list (splash stub) ────────────────────────────────
+fn render_research_list(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "研究卡" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.research.list 接入后此处显示 5 类)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "宏观经济" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "行业分析" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "公司研究" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "市场策略" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "量化研究" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        }
+        ButtonFlat{text: "查看详情 →" on_click: || nav.push("research_detail")
+            draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 8.0 border_size: 1.0}
+            draw_text +: {color: colors.accent}}
+    }
+}
+
+// ── research detail (splash stub) ──────────────────────────────
+fn render_research_detail(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "研究卡详情" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — MVP 只做事实层)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "事实层（蓝色实线）" draw_text.color: colors.accent draw_text.text_style.font_size: 14}
+            Label{text: "GDP 同比 +5.2% / CPI 同比 +0.8%" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        }
+    }
+}
+
+// ── kline (splash stub with period chips + price text) ────────
+fn render_kline(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "行情看盘" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.quote.candles 接入后此处显示 K 线)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Right spacing: 8
+            draw_bg.color: colors.bg_elevated border_radius: 8.0 padding: 8
+            ButtonFlat{text: "1d" height: 28 on_click: || nav.push("kline")
+                draw_bg +: {color: colors.accent color_hover: colors.accent_h border_radius: 14.0}
+                draw_text +: {color: #xffffffff color_hover: #xffffffff}}
+            ButtonFlat{text: "5d" height: 28
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
+                draw_text +: {color: colors.ink color_hover: colors.accent}}
+            ButtonFlat{text: "1mo" height: 28
+                draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
+                draw_text +: {color: colors.ink color_hover: colors.accent}}
+        }
+        View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "上证指数 (000001) · 3,245.18" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "+18.42 (+0.57%)  vol 2.4B" draw_text.color: colors.green_up draw_text.text_style.font_size: 14}
+            Label{text: "open 3,228.00  high 3,251.30  low 3,219.40  close 3,245.18" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            Label{text: "(K 线 widget 占位 — quote.candles 接入后渲染 60+ 根蜡烛)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        }
+    }
+}
+
+// ── disclaimer (splash inline) ─────────────────────────────────
+fn render_disclaimer(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "免责声明" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "本应用仅供学习参考，不构成任何投资建议。" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "数据来源：新浪财经 / 腾讯财经 / Hyperliquid / Frankfurter ECB / Stooq" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+            Label{text: "开源协议：Apache-2.0" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        }
     }
 }
 
