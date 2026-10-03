@@ -168,19 +168,23 @@ fn render_launcher(){
     }
 }
 
-// ── 6 splash-inline screens (.card L0 bridge deferred) ──────────
+// ── 10 splash-inline screens (.card L0 bridge deferred) ─────────
 // Each render_X returns a screen body; render_screen_placeholder dispatches
 // by nav.current. Stub data only — host.X wires (news.refresh /
 // research.list / quote.candles) plug in once octoscript#56 lands.
 // splash has no `else if`; sequential `if` + `return` chains.
 
 fn render_screen_placeholder(){
-    if nav.current == "news_list"       { render_news_list()      return }
-    if nav.current == "news_detail"     { render_news_detail()    return }
-    if nav.current == "research_list"   { render_research_list()  return }
-    if nav.current == "research_detail" { render_research_detail() return }
-    if nav.current == "kline"           { render_kline()          return }
-    if nav.current == "disclaimer"      { render_disclaimer()     return }
+    if nav.current == "news_list"         { render_news_list()         return }
+    if nav.current == "news_detail"       { render_news_detail()       return }
+    if nav.current == "research_list"     { render_research_list()     return }
+    if nav.current == "research_detail"   { render_research_detail()   return }
+    if nav.current == "kline"             { render_kline()             return }
+    if nav.current == "favorites"         { render_favorites()         return }
+    if nav.current == "settings"          { render_settings()          return }
+    if nav.current == "event_stream"      { render_event_stream()      return }
+    if nav.current == "datasource_status" { render_datasource_status() return }
+    if nav.current == "disclaimer"        { render_disclaimer()        return }
     View{width: Fill height: Fill flow: Down spacing: 8 padding: 16
         Label{text: nav.current draw_text.color: colors.ink draw_text.text_style.font_size: 18}
         Label{text: "(splash-inline stub; .card L0 not bridged yet)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
@@ -286,6 +290,67 @@ fn render_disclaimer(){
             Label{text: "本应用仅供学习参考，不构成任何投资建议。" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
             Label{text: "数据来源：新浪财经 / 腾讯财经 / Hyperliquid / Frankfurter ECB / Stooq" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
             Label{text: "开源协议：Apache-2.0" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        }
+    }
+}
+
+// ── favorites (splash inline) ───────────────────────────────────
+fn render_favorites(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "收藏" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.favorites.list 接入后显示已收藏条目)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "★ 美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "★ 央行公开市场净投放 1000 亿" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "★ 上证指数 (000001) · 3,245.18" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        }
+    }
+}
+
+// ── settings (splash inline) ────────────────────────────────────
+fn render_settings(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "设置" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.settings.write 接入后写回 SQLite)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "主题市场: A股 / 美股 / 加密 / 外汇" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "数据刷新频率: 30s / 1m / 5m / 15m" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "字体大小: 小 / 中 / 大" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "深色 / 浅色 主题" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+        }
+    }
+}
+
+// ── event_stream (splash inline) ────────────────────────────────
+fn render_event_stream(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "事件流" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.stream.subscribe 接入后实时滚动)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 4 padding: 8
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "14:32:18  新浪财经  美联储议息会议纪要公布" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
+            Label{text: "14:30:05  腾讯财经  上证指数突破 3250 点" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
+            Label{text: "14:28:41  Hyperliquid  BTC 突破 67,500 USD" draw_text.color: colors.green_up draw_text.text_style.font_size: 12}
+            Label{text: "14:25:12  Frankfurter ECB  EUR/USD 1.0842" draw_text.color: colors.ink draw_text.text_style.font_size: 12}
+            Label{text: "14:22:33  Stooq  SPX 5,892.47 +0.34%" draw_text.color: colors.green_up draw_text.text_style.font_size: 12}
+        }
+    }
+}
+
+// ── datasource_status (splash inline) ───────────────────────────
+fn render_datasource_status(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        Label{text: "数据源状态" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
+        Label{text: "(splash stub; .card not bridged — host.datasource.status 接入后实时心跳)" draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+        View{width: Fill height: Fit flow: Down spacing: 6 padding: 12
+            draw_bg.color: colors.bg_elevated border_radius: 8.0
+            Label{text: "● 新浪财经        sina.com.cn          OK    28ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
+            Label{text: "● 腾讯财经        qq.com               OK    35ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
+            Label{text: "● Hyperliquid     api.hyperliquid.xyz  OK   180ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
+            Label{text: "● Frankfurter ECB api.frankfurter.app  WARN  timeout" draw_text.color: colors.red_down draw_text.text_style.font_size: 13}
+            Label{text: "● Stooq           stooq.com            OK    95ms" draw_text.color: colors.green_up draw_text.text_style.font_size: 13}
         }
     }
 }
