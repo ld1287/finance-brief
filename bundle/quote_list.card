@@ -1,95 +1,113 @@
-# ledger finance-brief-quote-list@0.3.0
-# level:   L0
-# model:   quote_list
+# quote_list.card — Screen #7 of 12: 行情看盘 (Quote Watchlist)
+# Phase 3.5 B-1: 4 independent sys.movers sources, one per tab.
 
-source a_quotes    sys.quotes(tab: "A", count: 30, fields: [code, name, last, change_pct, volume])
-source us_quotes   sys.quotes(tab: "us", count: 30, fields: [ticker, name, last, change_pct, volume])
-source fx_quotes   sys.quotes(tab: "fx", count: 20, fields: [pair, last, change_pct])
-source crypto      sys.quotes(tab: "crypto", count: 20, fields: [ticker, name, last, change_pct, volume])
-source watch       sys.watchlist(fields: [ticker, last, pct])
-source env.locale  sys.locale()
+source a_movers      sys.movers(tab: "a",      count: 30, fields: [ticker, name, last, change, pct, volume, currency])
+source us_movers     sys.movers(tab: "us",     count: 30, fields: [ticker, name, last, change, pct, volume, currency])
+source fx_movers     sys.movers(tab: "fx",     count: 20, fields: [pair,   name, last, change, pct])
+source crypto_movers sys.movers(tab: "crypto", count: 20, fields: [ticker, name, last, change, pct, volume, currency])
+source watch         sys.watchlist(fields: [ticker, last, pct])
+source env.locale    sys.locale()
 
-state selected_tab { shape: enum[a, us, fx, crypto], initial: .a }   # 当前主题
-state selected     { shape: text, initial: "" }                       # "" ⇒ 列表; ticker ⇒ 跳 K线
+state selected_tab { shape: enum[a, us, fx, crypto], initial: .a }
+state selected     { shape: text, initial: "" }
 
 event set_tab   { selected_tab: set($value) }
 event open_kline { selected: set($value) }
 event back       { selected: clear, selected_tab: set(.a) }
 
-copy hdr       { class: vocabulary, en: "行情看盘",          zh: "行情看盘" }
-copy tab_a     { class: vocabulary, en: "A股",                zh: "A股" }
-copy tab_us    { class: vocabulary, en: "美股",               zh: "美股" }
-copy tab_fx    { class: vocabulary, en: "外汇",               zh: "外汇" }
-copy tab_cry   { class: vocabulary, en: "加密",               zh: "加密" }
-copy lbl_name  { class: vocabulary, en: "名称",               zh: "名称" }
-copy lbl_last  { class: vocabulary, en: "最新价",             zh: "最新价" }
-copy lbl_pct   { class: vocabulary, en: "涨跌幅",             zh: "涨跌幅" }
-copy lbl_vol   { class: vocabulary, en: "成交量",             zh: "成交量" }
-copy back_lbl  { class: vocabulary, en: "‹ 主界面",            zh: "‹ 主界面" }
+copy hdr       { class: vocabulary, en: "Watchlist",                   zh: "行情看盘" }
+copy tab_a     { class: vocabulary, en: "A-shares",                    zh: "A 股" }
+copy tab_us    { class: vocabulary, en: "US",                          zh: "美股" }
+copy tab_fx    { class: vocabulary, en: "FX",                          zh: "外汇" }
+copy tab_cry   { class: vocabulary, en: "Crypto",                      zh: "加密" }
+copy lbl_name  { class: vocabulary, en: "Name",                        zh: "名称" }
+copy lbl_last  { class: vocabulary, en: "Last",                        zh: "最新价" }
+copy lbl_pct   { class: vocabulary, en: "Change %",                    zh: "涨跌幅" }
+copy lbl_vol   { class: vocabulary, en: "Volume",                      zh: "成交量" }
+copy back_lbl  { class: vocabulary, en: "‹ Main",                      zh: "‹ 主界面" }
+copy loading   { class: vocabulary, en: "Loading quotes…",             zh: "正在获取行情…" }
+copy offline   { class: vocabulary, en: "Can't reach the data source", zh: "无法获取行情" }
+copy footer    { class: vocabulary, en: "Tap a row to open K-line",    zh: "点击行进入 K 线" }
 
-view root  Surface(pad: .page) {
-             header
-             tabs
-             list
-             footer
-           }
+view root Surface(pad: .page) {
+  header
+  tabs
+  list
+  footer
+}
 
-view header  Row(align: .center, gap: 10) {
-               Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
-               TextTitle(text: copy.hdr)
-             }
+view header Row(align: .center, gap: 10) {
+  Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
+  TextTitle(text: copy.hdr)
+}
 
-view tabs  Row(gap: 6) {
-             Chip(text: copy.tab_a,   on_tap: set_tab, value: .a,      active: selected_tab == .a)
-             Chip(text: copy.tab_us,  on_tap: set_tab, value: .us,     active: selected_tab == .us)
-             Chip(text: copy.tab_fx,  on_tap: set_tab, value: .fx,     active: selected_tab == .fx)
-             Chip(text: copy.tab_cry, on_tap: set_tab, value: .crypto, active: selected_tab == .crypto)
-           }
+view tabs Row(gap: 6) {
+  Chip(text: copy.tab_a,   on_tap: set_tab, value: .a,      active: selected_tab == .a)
+  Chip(text: copy.tab_us,  on_tap: set_tab, value: .us,     active: selected_tab == .us)
+  Chip(text: copy.tab_fx,  on_tap: set_tab, value: .fx,     active: selected_tab == .fx)
+  Chip(text: copy.tab_cry, on_tap: set_tab, value: .crypto, active: selected_tab == .crypto)
+}
 
-view list  Panel {
-             when selected_tab == .a {
-               for q, i in a_quotes key q.code {
-                 Row(align: .center, gap: 8, on_tap: open_kline, value: q.code) {
-                   TextRow(text: q.name, width: .fill)
-                   TextValue(value: q.last, format: .money)
-                   TextValue(value: q.change_pct, format: .signed_pct, tint: q.change_pct)
-                   TextCaption(value: q.volume, format: .compact)
-                 }
-                 Rule()
-               }
-             }
-             when selected_tab == .us {
-               for q, i in us_quotes key q.ticker {
-                 Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
-                   TextRow(text: q.name, width: .fill)
-                   TextValue(value: q.last, format: .money)
-                   TextValue(value: q.change_pct, format: .signed_pct, tint: q.change_pct)
-                   TextCaption(value: q.volume, format: .compact)
-                 }
-                 Rule()
-               }
-             }
-             when selected_tab == .fx {
-               for q, i in fx_quotes key q.pair {
-                 Row(align: .center, gap: 8, on_tap: open_kline, value: q.pair) {
-                   TextRow(text: q.pair, width: .fill)
-                   TextValue(value: q.last, format: .ratio)
-                   TextValue(value: q.change_pct, format: .signed_pct, tint: q.change_pct)
-                 }
-                 Rule()
-               }
-             }
-             when selected_tab == .crypto {
-               for q, i in crypto key q.ticker {
-                 Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
-                   TextRow(text: q.name, width: .fill)
-                   TextValue(value: q.last, format: .money)
-                   TextValue(value: q.change_pct, format: .signed_pct, tint: q.change_pct)
-                   TextCaption(value: q.volume, format: .compact)
-                 }
-                 Rule()
-               }
-             }
-           }
+view list Panel {
+  when selected_tab == .a {
+    when a_movers.$state == .pending { TextBody(text: copy.loading) }
+    when a_movers.$state == .failed  { TextBody(text: copy.offline) }
+    when a_movers.$state == .ready {
+      for q, i in a_movers key q.ticker {
+        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
+          TextRow(text: q.name, width: .fill)
+          TextValue(value: q.last, format: .money)
+          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
+          TextCaption(value: q.volume, format: .compact)
+        }
+        Rule()
+      }
+    }
+  }
+  when selected_tab == .us {
+    when us_movers.$state == .pending { TextBody(text: copy.loading) }
+    when us_movers.$state == .failed  { TextBody(text: copy.offline) }
+    when us_movers.$state == .ready {
+      for q, i in us_movers key q.ticker {
+        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
+          TextRow(text: q.name, width: .fill)
+          TextValue(value: q.last, format: .money)
+          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
+          TextCaption(value: q.volume, format: .compact)
+        }
+        Rule()
+      }
+    }
+  }
+  when selected_tab == .fx {
+    when fx_movers.$state == .pending { TextBody(text: copy.loading) }
+    when fx_movers.$state == .failed  { TextBody(text: copy.offline) }
+    when fx_movers.$state == .ready {
+      for q, i in fx_movers key q.pair {
+        Row(align: .center, gap: 8, on_tap: open_kline, value: q.pair) {
+          TextRow(text: q.pair, width: .fill)
+          TextValue(value: q.last, format: .ratio)
+          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
+        }
+        Rule()
+      }
+    }
+  }
+  when selected_tab == .crypto {
+    when crypto_movers.$state == .pending { TextBody(text: copy.loading) }
+    when crypto_movers.$state == .failed  { TextBody(text: copy.offline) }
+    when crypto_movers.$state == .ready {
+      for q, i in crypto_movers key q.ticker {
+        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
+          TextRow(text: q.name, width: .fill)
+          TextValue(value: q.last, format: .money)
+          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
+          TextCaption(value: q.volume, format: .compact)
+        }
+        Rule()
+      }
+    }
+  }
+}
 
-view footer  TextCaption(text: "切换主题 · 点击行进入 K 线")
+view footer TextCaption(text: copy.footer)
