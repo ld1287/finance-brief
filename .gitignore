@@ -22,3 +22,5 @@ finance-brief/_captures/
 # Local orchestration TODO files (git-ignored coordination docs)
 .todo-*.md
 .todo-*/
+# Local check_card validation logs
+.check-*.log
