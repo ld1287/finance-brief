@@ -1,0 +1,126 @@
+# ledger finance-brief-settings@0.3.0
+# level:   L0
+# model:   settings
+
+# source: 屏 #9 完全靠 local state,无 sys.X / env.locale 依赖
+
+state theme           { shape: enum[light, dark, auto], initial: .auto }
+state frequency       { shape: enum[1s, 5s, 10s],     initial: .5s   }
+state ds_sina         { shape: bool, initial: true }                      # 新浪财经
+state ds_tencent      { shape: bool, initial: true }                      # 腾讯行情
+state ds_stooq        { shape: bool, initial: true }                      # Stooq 美股
+state ds_hyperliquid  { shape: bool, initial: true }                      # Hyperliquid
+state ds_frankfurter  { shape: bool, initial: true }                      # Frankfurter 外汇
+
+event back            { theme: clear }                                                    # 占位;host 拦截为 nav.pop
+event set_theme       { theme: set($value) }
+event set_frequency   { frequency: set($value) }
+event toggle_sina     { ds_sina: toggle }
+event toggle_tencent  { ds_tencent: toggle }
+event toggle_stooq    { ds_stooq: toggle }
+event toggle_hyper    { ds_hyperliquid: toggle }
+event toggle_fran     { ds_frankfurter: toggle }
+event reset_settings  { theme: set(.auto), frequency: set(.5s), ds_sina: set(true), ds_tencent: set(true), ds_stooq: set(true), ds_hyperliquid: set(true), ds_frankfurter: set(true) }
+event open_disclaimer { theme: clear }                                                    # 占位;host 拦截为 nav.push(disclaimer)
+
+copy hdr             { class: vocabulary, en: "Settings",                                 zh: "设置" }
+copy subtitle        { class: vocabulary, en: "v0.3 MVP",                                 zh: "v0.3 MVP" }
+copy back_lbl        { class: vocabulary, en: "‹ Main",                                   zh: "‹ 主界面" }
+copy theme_hd        { class: vocabulary, en: "Theme",                                    zh: "主题" }
+copy theme_light     { class: vocabulary, en: "Light",                                    zh: "浅色" }
+copy theme_dark      { class: vocabulary, en: "Dark",                                     zh: "深色" }
+copy theme_auto      { class: vocabulary, en: "Auto",                                     zh: "跟随系统" }
+copy freq_hd         { class: vocabulary, en: "Stream frequency",                          zh: "事件流刷新频率" }
+copy freq_hint       { class: vocabulary, en: "Lower is fresher; raises battery",         zh: "频率越高越耗电" }
+copy freq_1s         { class: vocabulary, en: "1s",                                       zh: "1 秒" }
+copy freq_5s         { class: vocabulary, en: "5s",                                       zh: "5 秒" }
+copy freq_10s        { class: vocabulary, en: "10s",                                      zh: "10 秒" }
+copy ds_hd           { class: vocabulary, en: "Data sources",                             zh: "数据源" }
+copy ds_sina         { class: vocabulary, en: "Sina Finance",                             zh: "新浪财经" }
+copy ds_tencent      { class: vocabulary, en: "Tencent Quote",                            zh: "腾讯行情" }
+copy ds_stooq        { class: vocabulary, en: "Stooq US",                                 zh: "Stooq 美股" }
+copy ds_hyperliquid  { class: vocabulary, en: "Hyperliquid",                              zh: "Hyperliquid" }
+copy ds_frankfurter  { class: vocabulary, en: "Frankfurter",                              zh: "Frankfurter" }
+copy lbl_on          { class: vocabulary, en: "ON",                                       zh: "开" }
+copy lbl_off         { class: vocabulary, en: "OFF",                                      zh: "关" }
+copy pw_hd           { class: vocabulary, en: "Push window",                               zh: "推送时段" }
+copy pw_value        { class: vocabulary, en: "09:00–18:00 Asia/Shanghai",                zh: "09:00–18:00 (北京时间)" }
+copy version         { class: vocabulary, en: "finance-brief v0.3.0",                     zh: "finance-brief v0.3.0" }
+copy reset_chip      { class: vocabulary, en: "Reset to defaults",                        zh: "恢复默认设置" }
+copy disclaimer_chip { class: vocabulary, en: "Disclaimer →",                             zh: "免责声明 →" }
+
+view root Surface(pad: .page) {
+  header
+  theme_section
+  frequency_section
+  datasource_section
+  push_window_section
+  about_section
+}
+
+view header Col {
+  Row(align: .center, gap: 10, on_tap: back) { TextRow(text: copy.back_lbl) }
+  TextTitle(text: copy.hdr)
+  TextCaption(text: copy.subtitle)
+}
+
+view theme_section Col {
+  TextCaption(text: copy.theme_hd)
+  Row(gap: 6) {
+    Chip(text: copy.theme_light, on_tap: set_theme, value: .light, active: theme == .light)
+    Chip(text: copy.theme_dark,  on_tap: set_theme, value: .dark,  active: theme == .dark)
+    Chip(text: copy.theme_auto,  on_tap: set_theme, value: .auto,  active: theme == .auto)
+  }
+}
+
+view frequency_section Col {
+  TextCaption(text: copy.freq_hd)
+  TextBody(text: copy.freq_hint)
+  Row(gap: 6) {
+    Chip(text: copy.freq_1s,  on_tap: set_frequency, value: .1s,  active: frequency == .1s)
+    Chip(text: copy.freq_5s,  on_tap: set_frequency, value: .5s,  active: frequency == .5s)
+    Chip(text: copy.freq_10s, on_tap: set_frequency, value: .10s, active: frequency == .10s)
+  }
+}
+
+view datasource_section Col {
+  TextCaption(text: copy.ds_hd)
+  Row(align: .center, gap: 8) {
+    TextRow(text: copy.ds_sina, width: .fill)
+    Chip(text: copy.lbl_on,  on_tap: toggle_sina, value: "1", active: ds_sina)
+    Chip(text: copy.lbl_off, on_tap: toggle_sina, value: "0", active: !ds_sina)
+  }
+  Row(align: .center, gap: 8) {
+    TextRow(text: copy.ds_tencent, width: .fill)
+    Chip(text: copy.lbl_on,  on_tap: toggle_tencent, value: "1", active: ds_tencent)
+    Chip(text: copy.lbl_off, on_tap: toggle_tencent, value: "0", active: !ds_tencent)
+  }
+  Row(align: .center, gap: 8) {
+    TextRow(text: copy.ds_stooq, width: .fill)
+    Chip(text: copy.lbl_on,  on_tap: toggle_stooq, value: "1", active: ds_stooq)
+    Chip(text: copy.lbl_off, on_tap: toggle_stooq, value: "0", active: !ds_stooq)
+  }
+  Row(align: .center, gap: 8) {
+    TextRow(text: copy.ds_hyperliquid, width: .fill)
+    Chip(text: copy.lbl_on,  on_tap: toggle_hyper, value: "1", active: ds_hyperliquid)
+    Chip(text: copy.lbl_off, on_tap: toggle_hyper, value: "0", active: !ds_hyperliquid)
+  }
+  Row(align: .center, gap: 8) {
+    TextRow(text: copy.ds_frankfurter, width: .fill)
+    Chip(text: copy.lbl_on,  on_tap: toggle_fran, value: "1", active: ds_frankfurter)
+    Chip(text: copy.lbl_off, on_tap: toggle_fran, value: "0", active: !ds_frankfurter)
+  }
+}
+
+view push_window_section Col {
+  TextCaption(text: copy.pw_hd)
+  TextBody(text: copy.pw_value)
+}
+
+view about_section Col {
+  TextCaption(text: copy.version)
+  Row(gap: 8) {
+    Chip(text: copy.reset_chip,      on_tap: reset_settings,  value: "1", tone: .danger)
+    Chip(text: copy.disclaimer_chip, on_tap: open_disclaimer, value: "1")
+  }
+}

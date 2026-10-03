@@ -1,0 +1,69 @@
+# ledger finance-brief-disclaimer@0.3.0
+# level:   L0
+# model:   disclaimer
+
+state accepted { shape: bool, initial: false }
+
+event back     { accepted: set(false) }
+event accept   { accepted: set(true) }
+event decline  { accepted: set(false) }
+
+copy hdr             { class: vocabulary, en: "Disclaimer",         zh: "免责声明" }
+copy back_lbl        { class: vocabulary, en: "‹ Settings",         zh: "‹ 设置" }
+copy intro_title     { class: vocabulary, en: "Purpose",            zh: "用途" }
+copy intro_body      { class: vocabulary, en: "finance-brief is an information aggregator for personal, non-commercial use. It surfaces headlines, market quotes, and short briefs from public sources.", zh: "finance-brief 是一个面向个人非商业用途的财经信息聚合工具。它从公开来源展示新闻、市场行情和简短简报。" }
+copy advice_title    { class: vocabulary, en: "No investment advice", zh: "不构成投资建议" }
+copy advice_body     { class: vocabulary, en: "Nothing in this app is a recommendation, solicitation, or endorsement to buy or sell any security or asset. Consult a licensed advisor.", zh: "本应用内容均不构成任何投资建议、推荐或背书。请咨询有资质的投资顾问。" }
+copy accuracy_title  { class: vocabulary, en: "Data accuracy",      zh: "数据准确性" }
+copy accuracy_body   { class: vocabulary, en: "Quotes and headlines are fetched from public sources and may lag, be inaccurate, or be unavailable. Always cross-check with the official exchange.", zh: "行情和新闻来自公开数据源,可能延迟、不准确或不可用。请始终以交易所官方数据为准。" }
+copy liability_title { class: vocabulary, en: "Liability",          zh: "责任限制" }
+copy liability_body  { class: vocabulary, en: "The authors disclaim all liability for losses arising from use of this app. Use at your own risk.", zh: "作者不对使用本应用造成的任何损失承担责任。使用风险自担。" }
+copy version         { class: vocabulary, en: "finance-brief v0.3.0", zh: "finance-brief v0.3.0" }
+copy sources         { class: vocabulary, en: "Sources: sina / tencent / stooq / hyperliquid / frankfurter", zh: "数据源: 新浪 / 腾讯 / Stooq / Hyperliquid / Frankfurter" }
+copy accept_chip     { class: vocabulary, en: "Accept & continue", zh: "同意并继续" }
+copy decline_chip    { class: vocabulary, en: "Decline",            zh: "不同意" }
+
+view root Surface(pad: .page) {
+  header
+  intro_section
+  advice_section
+  accuracy_section
+  liability_section
+  version_section
+  actions
+}
+
+view header Col {
+  Row(align: .center, gap: 10, on_tap: back) { TextRow(text: copy.back_lbl) }
+  TextTitle(text: copy.hdr)
+}
+
+view intro_section Col {
+  TextCaption(text: copy.intro_title)
+  TextBody(text: copy.intro_body, width: .fill)
+}
+
+view advice_section Col {
+  TextCaption(text: copy.advice_title)
+  TextBody(text: copy.advice_body, width: .fill)
+}
+
+view accuracy_section Col {
+  TextCaption(text: copy.accuracy_title)
+  TextBody(text: copy.accuracy_body, width: .fill)
+}
+
+view liability_section Col {
+  TextCaption(text: copy.liability_title)
+  TextBody(text: copy.liability_body, width: .fill)
+}
+
+view version_section Col {
+  TextCaption(text: copy.version)
+  TextCaption(text: copy.sources)
+}
+
+view actions Row(gap: 8) {
+  Chip(text: copy.accept_chip, on_tap: accept, value: "1")
+  Chip(text: copy.decline_chip, on_tap: decline, value: "1", tone: .danger)
+}
