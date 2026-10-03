@@ -9,9 +9,9 @@
   "icon": "assets/icon.svg",
   "platforms": ["linux"],
   "publisher": {
-    "name": "Replace with your publisher name",
-    "support": "https://example.com/support",
-    "privacy_policy_url": "https://example.com/privacy"
+    "name": "lumina",
+    "support": "https://github.com/ld1287/finance-brief",
+    "privacy_policy_url": "https://github.com/ld1287/finance-brief"
   },
   "release_notes": "首个演示版本：五个行情/要闻标签、详情、收藏与离线示例数据。",
   "age_rating": "all",
