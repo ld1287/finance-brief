@@ -1,11 +1,10 @@
 # quote_list.card — Screen #7 of 12: 行情看盘 (Quote Watchlist)
 # Phase 3.5 B-1: 4 independent sys.movers sources, one per tab.
 
-source a_movers      sys.movers(tab: "a",      count: 30, fields: [ticker, name, last, change, pct, volume, currency])
-source us_movers     sys.movers(tab: "us",     count: 30, fields: [ticker, name, last, change, pct, volume, currency])
-source fx_movers     sys.movers(tab: "fx",     count: 20, fields: [pair,   name, last, change, pct])
-source crypto_movers sys.movers(tab: "crypto", count: 20, fields: [ticker, name, last, change, pct, volume, currency])
-source watch         sys.watchlist(fields: [ticker, last, pct])
+source a_movers      sys.movers(count: 30, fields: [ticker, name, last, change, pct, volume, currency])
+source us_movers     sys.movers(count: 30, fields: [ticker, name, last, change, pct, volume, currency])
+source fx_movers     sys.movers(count: 20, fields: [ticker, name, last, change, pct])
+source crypto_movers sys.movers(count: 20, fields: [ticker, name, last, change, pct, volume, currency])
 source env.locale    sys.locale()
 
 state selected_tab { shape: enum[a, us, fx, crypto], initial: .a }
@@ -58,7 +57,7 @@ view list Panel {
           TextRow(text: q.name, width: .fill)
           TextValue(value: q.last, format: .money)
           TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-          TextCaption(value: q.volume, format: .compact)
+          TextCaption(value: q.volume)
         }
         Rule()
       }
@@ -73,7 +72,7 @@ view list Panel {
           TextRow(text: q.name, width: .fill)
           TextValue(value: q.last, format: .money)
           TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-          TextCaption(value: q.volume, format: .compact)
+          TextCaption(value: q.volume)
         }
         Rule()
       }
@@ -83,9 +82,9 @@ view list Panel {
     when fx_movers.$state == .pending { TextBody(text: copy.loading) }
     when fx_movers.$state == .failed  { TextBody(text: copy.offline) }
     when fx_movers.$state == .ready {
-      for q, i in fx_movers key q.pair {
-        Row(align: .center, gap: 8, on_tap: open_kline, value: q.pair) {
-          TextRow(text: q.pair, width: .fill)
+      for q, i in fx_movers key q.ticker {
+        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
+          TextRow(text: q.ticker, width: .fill)
           TextValue(value: q.last, format: .ratio)
           TextValue(value: q.pct, format: .signed_pct, tint: q.change)
         }
@@ -102,7 +101,7 @@ view list Panel {
           TextRow(text: q.name, width: .fill)
           TextValue(value: q.last, format: .money)
           TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-          TextCaption(value: q.volume, format: .compact)
+          TextCaption(value: q.volume)
         }
         Rule()
       }
