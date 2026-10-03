@@ -4,6 +4,20 @@
 > 工作流：调研 → 架构 → UI 卡片 → adapters → shell 集成（全部本地，不推远端）。
 > 重写日期：2026-10-02（v1 是 splash 直接写法，v2 切到 octoscript 平台分层）
 
+## 0. ⏸️ Upstream 阻塞（2026-10-03）
+
+| 项 | 详情 |
+|---|---|
+| Issue | [OctoSense-org/OctoScript#56](https://github.com/OctoSense-org/OctoScript/issues/56) |
+| 标题 | `octoscript-ui-l0`: enable hosts to register additional `sys.*` helpers |
+| 状态 | open (0 comments) |
+| 影响 | finance-brief 17 capability 接不进 L0 屏（catalog::ANSWERS 硬编码 32 条） |
+| 阻塞范围 | Phase 4 (S-RESOLVE-SYS-X) / Phase 5 (S-REWRITE-ALL-CARDS) / Phase 6 (S-LOWER-AND-RUN) |
+| 不阻塞 | Phase 1 调研 ✅ / Phase 2 adapters + schemas ✅ / Phase 3 C-TEST ✅ |
+| 解锁条件 | upstream 合并 `register(Contract)` runtime API |
+| 当前动作 | 等 OctoSense-org 反馈；finance-brief 不私自改 octoscript-ui-l0 |
+| 详细编排 | `.todo-octoscript-rewrite-2026-10-02.md` §0.1 + §10 batch 4+ |
+
 ## 0. 决策纪要（Q1–Q8，与用户对齐）
 
 | # | 问题 | 决策 |
