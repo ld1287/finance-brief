@@ -1,0 +1,70 @@
+// finance-brief main entry — orchestrator (launcher + nav shell)
+// 12 .card screens are loaded by host API on nav.push; this file
+// only renders the launcher + the in-shell header / back button.
+
+use mod.lib.colors.*
+use mod.lib.nav.*
+
+// ── header ─────────────────────────────────────────────────────
+fn render_header(){
+    View{width: Fill height: Fit flow: Right spacing: 8 padding: 16 align: Align{y: 0.5}
+        if mod.lib.nav.is_home() == false {
+            ButtonFlat{text: "← 返回" height: 36 on_click: || mod.lib.nav.back()
+                draw_bg +: {color: mod.lib.colors.bg_elevated color_hover: mod.lib.colors.divider border_radius: 18.0 border_size: 1.0}
+                draw_text +: {color: mod.lib.colors.ink color_hover: mod.lib.colors.accent}}
+        }
+        Label{width: Fill text: "财经简报"
+            draw_text.color: mod.lib.colors.ink
+            draw_text.text_style.font_size: 22}
+    }
+}
+
+// ── launcher tile ──────────────────────────────────────────────
+fn render_tile(label, screen_name){
+    ButtonFlat{width: Fill height: 96 on_click: || mod.lib.nav.push(screen_name)
+        draw_bg +: {color: mod.lib.colors.bg_elevated color_hover: mod.lib.colors.divider border_radius: 12.0 border_size: 1.0}
+        draw_text +: {color: mod.lib.colors.ink}
+        Label{text: label draw_text.color: mod.lib.colors.ink draw_text.text_style.font_size: 16}
+    }
+}
+
+// ── launcher ───────────────────────────────────────────────────
+fn render_launcher(){
+    View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
+        // row 1
+        View{width: Fill height: Fit flow: Right spacing: 12
+            render_tile("新闻简报", "news_list")
+            render_tile("研究卡",   "research_list")
+            render_tile("行情看盘", "quote_list")
+        }
+        // row 2
+        View{width: Fill height: Fit flow: Right spacing: 12
+            render_tile("收藏",     "favorites")
+            render_tile("设置",     "settings")
+            render_tile("事件流",   "event_stream")
+        }
+        // backup slot
+        View{width: Fill height: Fit flow: Down spacing: 6 padding: 16
+            Label{text: "备用槽" draw_text.color: mod.lib.colors.secondary draw_text.text_style.font_size: 12}
+            render_tile("数据源状态页", "datasource_status")
+        }
+    }
+}
+
+// ── screen placeholder (real screens are .card files loaded by host) ──
+fn render_screen_placeholder(){
+    View{width: Fill height: Fill flow: Down spacing: 8 padding: 16
+        Label{text: mod.lib.nav.current draw_text.color: mod.lib.colors.ink draw_text.text_style.font_size: 18}
+        Label{text: "(host loads the corresponding .card)" draw_text.color: mod.lib.colors.secondary draw_text.text_style.font_size: 12}
+    }
+}
+
+// ── boot ───────────────────────────────────────────────────────
+start_timeout(0.05, || mod.lib.nav.go_home())
+
+// ── root ───────────────────────────────────────────────────────
+SolidView{width: Fill height: Fill flow: Down spacing: 0 draw_bg.color: mod.lib.colors.bg
+    render_header()
+    if mod.lib.nav.is_home() == true { render_launcher() }
+    render_screen_placeholder()
+}
