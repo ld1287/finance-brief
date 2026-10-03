@@ -11,7 +11,8 @@ state filter_active    { shape: enum[all, macro, a_share, crypto, fx, on_chain],
 state orderbook_symbol { shape: text,                                                   initial: "BTC" }
 
 event back         { paused: set(.running), filter_active: set(.all) }
-event toggle_pause { paused: toggle }
+event pause_stream { paused: set(.paused) }
+event resume_stream{ paused: set(.running) }
 event set_filter   { filter_active: set($value) }
 event set_symbol   { orderbook_symbol: set($value) }
 
@@ -45,8 +46,8 @@ view root Surface(pad: .page) {
 view header Row(align: .center, gap: 10) {
   Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
   TextTitle(text: copy.hdr)
-  Chip(text: copy.pause_lbl,  on_tap: toggle_pause, value: "1", active: paused == .running)
-  Chip(text: copy.resume_lbl, on_tap: toggle_pause, value: "1", active: paused == .paused, tone: .danger)
+  Chip(text: copy.pause_lbl,  on_tap: pause_stream,  value: "1", active: paused == .running)
+  Chip(text: copy.resume_lbl, on_tap: resume_stream, value: "1", active: paused == .paused, tone: .danger)
 }
 
 view status Row(gap: 8) {
@@ -99,9 +100,9 @@ view orderbook_col Col {
   when orderbook.$state == .failed  { TextBody(text: copy.offline) }
   when orderbook.$state == .ready {
     Col {
-      TextCaption(value: orderbook.last,   format: .money)
-      TextCaption(value: orderbook.pct,    format: .signed_pct)
-      TextCaption(value: orderbook.volume, format: .compact)
+      TextCaption(value: orderbook.last)
+      TextCaption(value: orderbook.pct)
+      TextCaption(value: orderbook.volume)
       TextCaption(text: orderbook.exchange)
     }
   }
