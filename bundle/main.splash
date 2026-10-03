@@ -29,19 +29,16 @@ let nav = {
 nav.push = fn(name){
     nav.history.push(nav.current)
     nav.current = name
-    ui.root.render()
 }
 
 nav.back = fn(){
     if nav.history.len() == 0 { return }
     nav.current = nav.history.pop()
-    ui.root.render()
 }
 
 nav.go_home = fn(){
     nav.history = []
     nav.current = "launcher"
-    ui.root.render()
 }
 
 nav.is_home = fn(){
@@ -172,7 +169,7 @@ fn render_screen_placeholder(){
 start_timeout(0.05, || nav.go_home())
 
 // ── root ───────────────────────────────────────────────────────
-root := SolidView{width: Fill height: Fill flow: Down spacing: 0 draw_bg.color: colors.bg
+SolidView{width: Fill height: Fill flow: Down spacing: 0 draw_bg.color: colors.bg
     on_render: || {
         render_header()
         if nav.is_home() == true { render_launcher() }
