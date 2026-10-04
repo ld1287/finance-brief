@@ -94,7 +94,7 @@ pub fn register_capability_handlers(vm: &mut ScriptVm) {
 //
 // Wiring these up against the real adapters requires that
 // `finance-brief/native/` be a workspace member or sibling crate of
-// `apps/finance-brief/`; that is the next step (host-service crate in
+// `apps/desktop/`; that is the next step (host-service crate in
 // `.todo-c-path3-reality-2026-10-04.md §4`). For this MVP commit we ship
 // the dispatcher + screen wiring, and leave the adapter call sites as
 // TODO markers with the exact name they will dispatch to.
