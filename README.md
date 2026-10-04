@@ -102,8 +102,8 @@ test result: ok.  3 passed; 0 failed   # smoke
 ## 8. Git 信息
 
 - 分支：`main`
-- 相对 `origin/main`：ahead 24，未推送
-- 当前 HEAD：`6b6bf36 Phase B-5: inline 10 launcher tiles + real data list rendering`
+- 相对 `origin/main`：ahead 3，未推送
+- 当前 HEAD：`459aecc Splash: wire kline period chips (1d/5d/1mo)`
 
 ## 9. License
 
