@@ -267,7 +267,7 @@ fn render_news_list(){
                 View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
                     draw_bg.color: colors.bg_elevated border_radius: 8.0
                     Label{text: data_news_list[i].title draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-                    Label{text: data_news_list[i].source + " · " + data_news_list[i].time draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+                    Label{text: data_news_list[i].source + " · " + data_news_list[i].ts draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
                 }
             }
             btn_news_detail := ButtonFlat{text: "查看详情 →" height: 36 on_click: || nav.push("news_detail")
@@ -295,7 +295,7 @@ fn render_news_detail(){
             View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
                 draw_bg.color: colors.bg_elevated border_radius: 8.0
                 Label{text: data_news_detail.title draw_text.color: colors.ink draw_text.text_style.font_size: 16}
-                Label{text: data_news_detail.source + " · " + data_news_detail.time draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
+                Label{text: data_news_detail.source + " · " + data_news_detail.ts draw_text.color: colors.secondary draw_text.text_style.font_size: 12}
                 Label{text: data_news_detail.summary draw_text.color: colors.ink draw_text.text_style.font_size: 14}
             }
         }
@@ -350,7 +350,7 @@ fn render_research_detail(){
             View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
                 draw_bg.color: colors.bg_elevated border_radius: 8.0
                 Label{text: "事实层（蓝色实线）" draw_text.color: colors.accent draw_text.text_style.font_size: 14}
-                Label{text: data_research_detail.fact draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+                Label{text: data_research_detail.body draw_text.color: colors.ink draw_text.text_style.font_size: 14}
             }
         }
     }
@@ -367,7 +367,7 @@ fn render_kline(){
     }
     View{width: Fill height: Fill flow: Down spacing: 12 padding: 16
         Label{text: "行情看盘" draw_text.color: colors.ink draw_text.text_style.font_size: 20}
-        Label{text: "symbol=" + data_kline.symbol + " period=" + data_kline.period + "  载入 " + data_kline.candles.len() + " 根" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
+        Label{text: "symbol=" + data_kline.symbol + " period=" + data_kline.period + "  载入 " + data_kline.bars.len() + " 根" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Right spacing: 8
             draw_bg.color: colors.bg_elevated border_radius: 8.0 padding: 8
             btn_kline_1d := ButtonFlat{text: "1d" height: 28 on_click: || nav.push("kline")
@@ -380,19 +380,19 @@ fn render_kline(){
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
                 draw_text +: {color: colors.ink color_hover: colors.accent}}
         }
-        if data_kline.candles.len() == 0 {
+        if data_kline.bars.len() == 0 {
             View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
                 draw_bg.color: colors.bg_elevated border_radius: 8.0
                 Label{text: "等待 host.quote.candles 返回..." draw_text.color: colors.secondary draw_text.text_style.font_size: 14}
             }
         }
-        if data_kline.candles.len() > 0 {
+        if data_kline.bars.len() > 0 {
             View{width: Fill height: Fit flow: Down spacing: 2 padding: 8
                 draw_bg.color: colors.bg_elevated border_radius: 8.0
-                for i in data_kline.candles.len() {
+                for i in data_kline.bars.len() {
                     let candle_color = colors.green_up
-                    if data_kline.candles[i].close < data_kline.candles[i].open { candle_color = colors.red_down }
-                    Label{text: data_kline.candles[i].time + "  O:" + data_kline.candles[i].open + "  H:" + data_kline.candles[i].high + "  L:" + data_kline.candles[i].low + "  C:" + data_kline.candles[i].close + "  V:" + data_kline.candles[i].volume draw_text.color: candle_color draw_text.text_style.font_size: 10}
+                    if data_kline.bars[i].close < data_kline.bars[i].open { candle_color = colors.red_down }
+                    Label{text: data_kline.bars[i].timestamp + "  O:" + data_kline.bars[i].open + "  H:" + data_kline.bars[i].high + "  L:" + data_kline.bars[i].low + "  C:" + data_kline.bars[i].close + "  V:" + data_kline.bars[i].volume draw_text.color: candle_color draw_text.text_style.font_size: 10}
                 }
             }
         }
@@ -437,7 +437,7 @@ fn render_favorites(){
             for i in data_favorites.len() {
                 View{width: Fill height: Fit flow: Down spacing: 4 padding: 12
                     draw_bg.color: colors.bg_elevated border_radius: 8.0
-                    Label{text: "★ " + data_favorites[i].kind + ": " + data_favorites[i].key draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+                    Label{text: "★ " + data_favorites[i].view + ": " + data_favorites[i].key draw_text.color: colors.ink draw_text.text_style.font_size: 14}
                 }
             }
         }
@@ -459,7 +459,7 @@ fn render_settings(){
         View{width: Fill height: Fit flow: Down spacing: 8 padding: 12
             draw_bg.color: colors.bg_elevated border_radius: 8.0
             Label{text: "主题: " + data_settings.theme + " (light/dark)" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
-            Label{text: "刷新频率: " + data_settings.freq_ms + " ms" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
+            Label{text: "刷新频率: " + data_settings.stream_frequency + " ms" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
             Label{text: "字体大小: " + data_settings.font_size + " (sm/md/lg)" draw_text.color: colors.ink draw_text.text_style.font_size: 14}
         }
     }
@@ -484,7 +484,7 @@ fn render_event_stream(){
             for i in data_event_stream.len() {
                 View{width: Fill height: Fit flow: Down spacing: 2 padding: 6
                     draw_bg.color: colors.bg_elevated border_radius: 6.0
-                    Label{text: data_event_stream[i].time + "  " + data_event_stream[i].source draw_text.color: colors.secondary draw_text.text_style.font_size: 10}
+                    Label{text: data_event_stream[i].ts + "  " + data_event_stream[i].kind draw_text.color: colors.secondary draw_text.text_style.font_size: 10}
                     Label{text: data_event_stream[i].text draw_text.color: colors.ink draw_text.text_style.font_size: 12}
                 }
             }
@@ -514,7 +514,7 @@ fn render_datasource_status(){
                 if data_datasource_status[i].status == "ERR" { status_color = colors.red_down }
                 View{width: Fill height: Fit flow: Right spacing: 8 padding: 8
                     draw_bg.color: colors.bg_elevated border_radius: 6.0
-                    Label{text: "● " + data_datasource_status[i].id draw_text.color: status_color draw_text.text_style.font_size: 13 width: Fill}
+                    Label{text: "● " + data_datasource_status[i].name draw_text.color: status_color draw_text.text_style.font_size: 13 width: Fill}
                     Label{text: data_datasource_status[i].status draw_text.color: status_color draw_text.text_style.font_size: 12}
                     Label{text: data_datasource_status[i].latency_ms + "ms" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
                 }
