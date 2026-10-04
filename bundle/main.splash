@@ -391,13 +391,28 @@ fn render_kline(){
         Label{text: "symbol=" + data_kline.symbol + " period=" + data_kline.period + "  载入 " + data_kline.bars.len() + " 根" draw_text.color: colors.secondary draw_text.text_style.font_size: 11}
         View{width: Fill height: Fit flow: Right spacing: 8
             draw_bg.color: colors.bg_elevated border_radius: 8.0 padding: 8
-            btn_kline_1d := ButtonFlat{text: "1d" height: 28 on_click: || nav.push("kline")
+            btn_kline_1d := ButtonFlat{text: "1d" height: 28 on_click: || {
+                let r = host_quote_candles("sh000001", "1d")
+                if r.ok { data_kline = r.data }
+                ui.root.set_visible(false)
+                ui.root.set_visible(true)
+            }
                 draw_bg +: {color: colors.accent color_hover: colors.accent border_radius: 14.0}
                 draw_text +: {color: #xffffffff color_hover: #xffffffff}}
-            btn_kline_5d := ButtonFlat{text: "5d" height: 28
+            btn_kline_5d := ButtonFlat{text: "5d" height: 28 on_click: || {
+                let r = host_quote_candles("sh000001", "5d")
+                if r.ok { data_kline = r.data }
+                ui.root.set_visible(false)
+                ui.root.set_visible(true)
+            }
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
                 draw_text +: {color: colors.ink color_hover: colors.accent}}
-            btn_kline_1mo := ButtonFlat{text: "1mo" height: 28
+            btn_kline_1mo := ButtonFlat{text: "1mo" height: 28 on_click: || {
+                let r = host_quote_candles("sh000001", "1mo")
+                if r.ok { data_kline = r.data }
+                ui.root.set_visible(false)
+                ui.root.set_visible(true)
+            }
                 draw_bg +: {color: colors.bg_elevated color_hover: colors.divider border_radius: 14.0}
                 draw_text +: {color: colors.ink color_hover: colors.accent}}
         }
