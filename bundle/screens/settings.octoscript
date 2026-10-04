@@ -1,0 +1,42 @@
+// settings.octoscript — 设置屏。
+//
+// MVP: theme toggle + frequency selector. Each row calls
+// `tapto: "set:fb_settings_<key>=<value>"`. `_index.octoscript` does not
+// route into this screen; `st` changes drive re-renders only.
+
+fn screen_settings() {
+    let settings = sget(stk_settings, fb_settings_seed)
+    let theme = settings.theme
+    let is_dark = 0
+    if theme == "dark" { is_dark = 1 }
+    let freq = settings.freq_ms
+    let freq_5s = 0
+    let freq_1s = 0
+    let freq_2s = 0
+    if freq == 1000 { freq_1s = 1 }
+    if freq == 2000 { freq_2s = 1 }
+    if freq == 5000 { freq_5s = 1 }
+    return fb_page(fb_bg, [
+        fb_backbar("设置"),
+        fb_section("主题"),
+        {t: "row", fillw: 1, spacing: 8, c: [
+            fb_chip("浅色", "set:fb_settings_theme=light",
+                    1 - is_dark),
+            fb_chip("深色", "set:fb_settings_theme=dark",
+                    is_dark),
+        ]},
+        fb_section("事件流频率"),
+        {t: "row", fillw: 1, spacing: 8, c: [
+            fb_chip("1s",   "set:fb_settings_freq=1000", freq_1s),
+            fb_chip("2s",   "set:fb_settings_freq=2000", freq_2s),
+            fb_chip("5s",   "set:fb_settings_freq=5000", freq_5s),
+        ]},
+        fb_section("数据源"),
+        fb_body("已启用：Sina / Tencent / Stooq / Hyperliquid / Frankfurter"),
+        {t: "row", fillw: 1, spacing: 8, c: [
+            fb_chip("全部",   "set:fb_settings_sources=all",   1),
+        ]},
+        fb_section("字体大小"),
+        fb_body("中（默认） — 切屏 9 内可调"),
+    ])
+}

@@ -1,0 +1,31 @@
+// datasource_status.octoscript — 数据源状态聚合屏。
+//
+// L1 (per `docs/R-4-l0-cards.md §5`): row counting + sum of TTLs uses
+// arithmetic admitted in §9 of `ui-profile-l0.md`. Shows the live
+// health for each capability. Reads `st[stk_datasource]`, else falls
+// back to `fb_datasource_status_seed`.
+
+fn screen_datasource_status() {
+    let items = sget(stk_datasource, fb_datasource_status_seed)
+    let rows = []
+    let n = items.len()
+    for i in n {
+        rows.push({t: "row", fillw: 1, h: 44, padx: 12, pady: 8,
+                   spacing: 8, aligny: 0.5, bg: fb_bg_elevated, c: [
+            {t: "column", fitw: 1, c: [
+                txt(items[i][0], 13, 500, fb_ink),
+            ]},
+            {t: "column", w: 56, alignx: 0.5, c: [
+                txt(items[i][1], 12, 500, fb_green_up),
+            ]},
+            {t: "column", w: 56, alignx: 1.0, c: [
+                txt(items[i][2], 12, 400, fb_secondary),
+            ]},
+        ]})
+    }
+    return fb_page(fb_bg, [
+        fb_backbar("数据源状态"),
+        fb_section("健康度"),
+        {t: "column", fillw: 1, spacing: 8, c: rows},
+    ]
+}

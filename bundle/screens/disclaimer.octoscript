@@ -1,0 +1,22 @@
+// disclaimer.octoscript — 免责声明屏。
+
+fn screen_disclaimer() {
+    return fb_page(fb_bg, [
+        fb_backbar("免责声明"),
+        fb_title("免责声明"),
+        {t: "column", fillw: 1, pad: 16, spacing: 12, bg: fb_bg_elevated,
+         radius: fb_radius_card, c: [
+            fb_body("finance-brief 是一个演示性 OctoSense 应用，所有行情"),
+            fb_body("与新闻数据均来自公开免密接口，仅供学习与技术验证使用。"),
+            fb_body(""),
+            fb_body("本应用不构成任何投资建议；任何基于本应用数据进行的"),
+            fb_body("投资决策均由使用者自行承担风险。"),
+            fb_body(""),
+            fb_body("数据源（5 个）："),
+            fb_body("Sina 财经要闻 / Tencent 行情 / Stooq 美股 /"),
+            fb_body("Hyperliquid 加密 / Frankfurter 外汇。"),
+            fb_body(""),
+            fb_body("License: Apache-2.0"),
+        ]},
+    ])
+}
