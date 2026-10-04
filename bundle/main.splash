@@ -221,6 +221,27 @@ fn render_launcher(){
                 Label{text: "数据源状态页" draw_text.color: colors.ink draw_text.text_style.font_size: 16}
             }
         }
+        tile_refresh := ButtonFlat{
+            width: Fill
+            height: 56.0
+            label: "刷新"
+            draw_bg.color: colors.accent
+            on_click: || {
+                let r = host.call("news.refresh", {limit: 30})
+                if r.ok {
+                    data_news_list = []
+                    for i in r.data.items.len() {
+                        let item = {}
+                        item.title = r.data.items[i].title
+                        item.source = r.data.items[i].source
+                        item.ts = r.data.items[i].ts
+                        data_news_list.push(item)
+                    }
+                }
+                ui.root.set_visible(false)
+                ui.root.set_visible(true)
+            }
+        }
     }
 }
 
