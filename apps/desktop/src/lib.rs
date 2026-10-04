@@ -173,16 +173,56 @@ impl App {
     }
 }
 
+/// Taps land here. The emitted body's `on_click` calls `NAV(t: "…")`.
+static TAPS: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+fn take_tap() -> Option<String> {
+    TAPS.lock().ok().and_then(|mut q| {
+        if q.is_empty() {
+            None
+        } else {
+            Some(q.remove(0))
+        }
+    })
+}
+
+fn register_nav(vm: &mut ScriptVm) {
+    let f_nav = octoscript_render::add_global_fn(
+        vm,
+        &[(
+            live_id!(t),
+            octoscript_render::makepad_script::ScriptValue::NIL,
+        )],
+        |vm, a| {
+            let t = octoscript_render::string_prop(vm, a, live_id!(t)).unwrap_or_default();
+            if let Ok(mut q) = TAPS.lock() {
+                q.push(t);
+            }
+            octoscript_render::makepad_script::ScriptValue::NIL
+        },
+    );
+    vm.set_injected_global(live_id!(NAV), f_nav);
+}
+
 impl MatchEvent for App {}
+
 impl AppMain for App {
-    fn script_mod(vm: &mut ScriptVm) -> ()
-    where
-        Self: ScriptHook + Sized,
-    {
-        // Expose `mod.fb.*` so the screens' `use mod.fb.*` resolves on the app
-        // VM. Each name maps to a finance-brief capability host-call; the
-        // actual implementation lives in `datasources.rs`.
+    fn script_mod(vm: &mut ScriptVm) -> ScriptValue {
+        // The theme the M3 widgets resolve against must match the surface the
+        // host paints; finance-brief renders a near-white background, so light.
+        crate::makepad_widgets::theme_mod(vm);
+        script_eval!(vm, {
+            mod.theme = mod.themes.light
+        });
+        // Fork-free themed widgets (Material 3), against upstream makepad.
+        octoscript_widgets::widgets_mod(vm);
+        // K-line + future plot widgets under `mod.plot.*`.
+        makepad_plot::script_mod(vm);
+        // Taps from the mounted body — `tapto:` strings land here.
+        register_nav(vm);
+        // Expose `mod.fb.*` so the screens' `use mod.fb.*` resolves on the app VM.
         datasources::register_capability_handlers(vm);
+        self::script_mod(vm)
     }
 
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
@@ -195,6 +235,24 @@ impl AppMain for App {
             if !self.started {
                 self.started = true;
                 self.mount(cx);
+                return;
+            }
+            // Drive re-mounts from NAV taps emitted by the mounted body.
+            let nav_raw = take_tap().unwrap_or_default();
+            let nav = nav_raw.trim();
+            if !nav.is_empty() {
+                if nav == "theme:toggle" {
+                    self.dark = !self.dark;
+                    self.last_src.clear();
+                    self.mount(cx);
+                } else if octoscript_render::state::apply(nav) {
+                    self.last_src.clear();
+                    self.mount(cx);
+                } else {
+                    self.route = nav.to_string();
+                    self.last_src.clear();
+                    self.mount(cx);
+                }
             }
         }
     }

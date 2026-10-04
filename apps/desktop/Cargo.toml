@@ -14,6 +14,7 @@ makepad-script = { git = "https://github.com/OctoSense-org/makepad.git", rev = "
 octoscript-widgets = { path = "../../../Octoscript-Makepad/crates/octoscript-widgets" }
 octoscript-render = { path = "../../../Octoscript-Makepad/crates/octoscript-render" }
 octoscript-makepad = { path = "../../../Octoscript-Makepad/crates/octoscript-makepad" }
+makepad-plot = { path = "../../../Octoscript-Makepad/crates/makepad-plot" }
 octoscript-ui-l0 = { git = "https://github.com/OctoSense-org/Octoscript.git", rev = "5430518683462eebb65b56b9b5d0e620006f04f4" }
 
 # Same shape as flutter-samples: a cdylib for mobile, an rlib so the desktop
