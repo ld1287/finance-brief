@@ -1,0 +1,28 @@
+[package]
+name = "finance-brief"
+version = "0.1.0"
+edition = "2021"
+description = "OctoSense finance brief app — finance news, quotes, favorites, K-line and event stream, rendered as native makepad widgets from the Octoscript DSL"
+license = "Apache-2.0"
+
+[dependencies]
+# finance-brief lives outside the Octoscript-Makepad workspace, so we declare
+# the makepad and octoscript deps explicitly rather than via `workspace = true`
+# (which only resolves inside the workspace at apps/flutter-samples).
+makepad-widgets = { git = "https://github.com/OctoSense-org/makepad.git", rev = "d4502ef1e4d196d2829a07aa137740cb0581e9b4" }
+makepad-script = { git = "https://github.com/OctoSense-org/makepad.git", rev = "d4502ef1e4d196d2829a07aa137740cb0581e9b4" }
+octoscript-widgets = { path = "../../../Octoscript-Makepad/crates/octoscript-widgets" }
+octoscript-render = { path = "../../../Octoscript-Makepad/crates/octoscript-render" }
+octoscript-makepad = { path = "../../../Octoscript-Makepad/crates/octoscript-makepad" }
+octoscript-ui-l0 = { git = "https://github.com/OctoSense-org/Octoscript.git", rev = "5430518683462eebb65b56b9b5d0e620006f04f4" }
+
+# Same shape as flutter-samples: a cdylib for mobile, an rlib so the desktop
+# binary below can link it, and the binary itself for `cargo run`.
+[lib]
+name = "finance_brief"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "finance-brief"
+path = "src/main.rs"
