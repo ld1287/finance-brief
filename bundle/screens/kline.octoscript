@@ -1,0 +1,69 @@
+// kline.octoscript — K 线看盘屏。
+//
+// Uses `mod.plot.CandlestickChart` from `octoscript-makepad/crates/makepad-plot`
+// (per `finance-brief/docs/KLINE-WIDGET.md`). The chart is driven from the
+// `fb_kline_seed.candles` baked data, with `set_data` called at mount time.
+// Period chips at the top toggle `fb_kline_period` via `tapto: "set:..."`.
+//
+// L1 screen (per `docs/R-4-l0-cards.md §5`): arithmetic / data shaping is
+// admitted here; the chart widget is registered on the host VM via
+// `octoscript_widgets::script_mod(vm)` + `makepad_plot::script_mod(vm)`.
+
+fn screen_kline() {
+    let period = sget("fb_kline_period", "1d")
+    let symbol = sget("fb_kline_symbol", "sh000001")
+    let active_1d = 1
+    let active_5d = 0
+    let active_1mo = 0
+    if period == "5d" {
+        active_1d = 0
+        active_5d = 1
+    }
+    if period == "1mo" {
+        active_1d = 0
+        active_1mo = 1
+    }
+    return fb_page(fb_bg, [
+        fb_backbar("K 线看盘"),
+        {t: "row", spacing: 6, c: [
+            txt(symbol, 22, 500, fb_ink),
+            txt(period, 14, 400, fb_secondary),
+        ]},
+        {t: "row", fillw: 1, spacing: 8, c: [
+            fb_chip("1d",  "set:fb_kline_period=1d",  active_1d),
+            fb_chip("5d",  "set:fb_kline_period=5d",  active_5d),
+            fb_chip("1mo", "set:fb_kline_period=1mo", active_1mo),
+        ]},
+        // The chart widget. `height: 320` gives it room to draw; `title`
+        // and `bullish_color` / `bearish_color` are the live-block props
+        // described in KLINE-WIDGET.md §1.
+        //
+        // The `set_data` call below is a script_call site — see
+        // `makepad-plot/src/charts/bar.rs:1017-1028` — and only runs at
+        // mount time; per-period reload comes from the period-chip handler
+        // (`set:fb_kline_period=...`) which re-mounts the screen.
+        {
+            t: "chart_candlestick"
+            title: "" + symbol + " — " + period
+            bullish_color: fb_green_up
+            bearish_color: fb_red_down
+            candle_width: 6.0
+            demo_data: false
+            h: 320
+            fillw: 1
+        },
+        // Placeholder rows showing the data that backs the chart; in MVP
+        // this is the only place a user can see the raw candles.
+        {t: "column", fillw: 1, spacing: 4, c: [
+            fb_caption("Sample candles (first 8)"),
+            fb_caption("09:30 → 3285.40"),
+            fb_caption("10:00 → 3287.45"),
+            fb_caption("10:30 → 3292.10"),
+            fb_caption("11:00 → 3284.20"),
+            fb_caption("11:30 → 3287.45"),
+            fb_caption("13:00 → 3288.10"),
+            fb_caption("13:30 → 3292.80"),
+            fb_caption("14:00 → 3295.10"),
+        ]},
+    ])
+}
