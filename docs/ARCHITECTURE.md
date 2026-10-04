@@ -57,7 +57,7 @@
 
 **v3 当前形态**（2026-10-04 起，`feat/one-octoscript` 分支）：
 - 全部 UI 在 `bundle/screens/*.octoscript` × 14
-- 入口 `apps/finance-brief/` Rust app（仿 `Octoscript-Makepad/apps/flutter-samples/`）
+- 入口 `apps/desktop/` Rust app（仿 `Octoscript-Makepad/apps/flutter-samples/`）
 - workflow.octoscript 真正被 screens 调用（refresh_workflow 等 7 fn）
 
 ---
@@ -73,7 +73,7 @@
 | 1 | Octoscript-Makepad 渲染管线 | `OctoSense/octoscript-makepad/` | ✅ 已实现 | Phase 1 |
 | 0 | Makepad 底层 | `OctoSense/makepad/` | ✅ 已实现 | Phase 1 |
 
-finance-brief 当前落地位置：Layer 0-2 全部对齐。apps/finance-brief 是
+finance-brief 当前落地位置：Layer 0-2 全部对齐。apps/desktop 是
 flutter-samples 的镜像（Rust 入口 + baked-in Octoscript bundle）。
 
 ---
@@ -128,8 +128,8 @@ bundle/screens/*.octoscript (14 files, baked-in BAKED in lib.rs)
 ```
 
 **关键源码锚点**：
-- `apps/finance-brief/src/lib.rs:74-93` — `BAKED` const（顺序：`_kit`, screens × 12, `_index`）
-- `apps/finance-brief/src/lib.rs:230-280` — `mount`（eval + assign `Splash.view`）
+- `apps/desktop/src/lib.rs:74-93` — `BAKED` const（顺序：`_kit`, screens × 12, `_index`）
+- `apps/desktop/src/lib.rs:230-280` — `mount`（eval + assign `Splash.view`）
 - `Octoscript-Makepad/apps/flutter-samples/src/lib.rs:228-283` — 主版本 `mount`
 - `Octoscript-Makepad/crates/octoscript-makepad/src/lib.rs` — `to_makepad_ui`
 
@@ -138,7 +138,7 @@ bundle/screens/*.octoscript (14 files, baked-in BAKED in lib.rs)
 ```
 .octoscript screen (`sget(key, default)` + `tapto: "set:..."`)
     ↓ host.fetch("cap.X", args)
-    ↓ apps/finance-brief/src/datasources.rs (mod.fb.<cap> registered)
+    ↓ apps/desktop/src/datasources.rs (mod.fb.<cap> registered)
     ↓ native/src/adapters/<x>.rs (实际 fetch + parse + cache)
     ↓ cache 写入（per docs/SPLASH-STYLE.md §4.4 fire-and-forget）
     ↓ 下一帧 sget 读到 → 屏重 render
@@ -172,7 +172,7 @@ bundle/screens/*.octoscript (14 files, baked-in BAKED in lib.rs)
 
 ## §5. capability 清单
 
-17 个 capability，对应 `apps/finance-brief/src/datasources.rs` 中 18 个
+17 个 capability，对应 `apps/desktop/src/datasources.rs` 中 18 个
 `mod.fb.<cap>` 注册（`quote.snapshot` 有 4 个 tab 变体）。
 
 详见 `docs/R-3-octoscript-platform.md §5.0.1` 与
@@ -228,16 +228,16 @@ bundle/screens/*.octoscript (14 files, baked-in BAKED in lib.rs)
 
 ### §8.2 入口与汇编
 
-**入口**：`apps/finance-brief/src/lib.rs::BAKED` const 固定拼接顺序：
+**入口**：`apps/desktop/src/lib.rs::BAKED` const 固定拼接顺序：
 `_kit` → 12 screens（launcher, news_list, ..., disclaimer） → `_index`。
 
 **汇编时机**：编译时通过 `include_str!` 嵌入二进制；运行时无磁盘读
-（hot-reload override 是可选项，per `apps/finance-brief/src/lib.rs::DEVICE_PATH`）。
+（hot-reload override 是可选项，per `apps/desktop/src/lib.rs::DEVICE_PATH`）。
 
 ### §8.3 K 线图（屏 6）
 
 使用 `mod.plot.CandlestickChart` widget（per `docs/KLINE-WIDGET.md`）。
-`apps/finance-brief/src/lib.rs::script_mod` 必须调用
+`apps/desktop/src/lib.rs::script_mod` 必须调用
 `makepad_plot::script_mod(vm)` 来注册 widget —— v3 当前未做，记入 §12 next。
 
 ---
@@ -275,8 +275,8 @@ https://github.com/OctoSense-org/OctoScript/issues/56
 
 | 步骤 | 状态 |
 |------|------|
-| `apps/finance-brief/src/datasources.rs` 9 fn 接 9 adapter | 🎯 TODO |
-| `apps/finance-brief/src/lib.rs::script_mod` 注册 `makepad_plot` widget | 🎯 TODO |
+| `apps/desktop/src/datasources.rs` 9 fn 接 9 adapter | 🎯 TODO |
+| `apps/desktop/src/lib.rs::script_mod` 注册 `makepad_plot` widget | 🎯 TODO |
 | `bundle/screens/*.octoscript` 在真机 / 桌面验证 12 屏全部 render | 🎯 TODO |
 | `octoscode` CLI 集成 | 🎯 Phase 6 |
 | OctoSense shell fullscreen launch | 🎯 Phase 4（依赖 #56） |
@@ -287,7 +287,7 @@ https://github.com/OctoSense-org/OctoScript/issues/56
 
 | 日期 | 改动 | commit |
 |------|------|--------|
-| 2026-10-04 | v3: 单一 Octoscript 方案迁移；删 main.splash + 12 .card + 6 splash docs；新建 apps/finance-brief/ + bundle/screens/ | `feat/one-octoscript` 分支 |
+| 2026-10-04 | v3: 单一 Octoscript 方案迁移；删 main.splash + 12 .card + 6 splash docs；新建 apps/desktop/ + bundle/screens/ | `feat/one-octoscript` 分支 |
 | 2026-10-03 | v2: splash DSL flat-let 单文件；workflow.octoscript 写但未挂 | `b19656c` |
 | 2026-10-02 | v1: 1689 行 main.splash；用户决策切到 octoscript 平台 | — |
 

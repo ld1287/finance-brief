@@ -47,7 +47,7 @@ v3 单一方案中处理。
 
 > **状态**：🎯 目标。`feat/one-octoscript` 后此阻塞项依然存在 —— shell
 > 集成与 Octoscript 方案正交。#56 合并后，shell 启动 finance-brief
-> fullscreen 走 octoscript-makepad 完整管线，`apps/finance-brief/`
+> fullscreen 走 octoscript-makepad 完整管线，`apps/desktop/`
 > 已经能直接被 shell 加载。
 
 ---
@@ -57,7 +57,7 @@ v3 单一方案中处理。
 **历史含义**：finance-brief 17 capability 映射到 sys.X 命名空间
 （如 `sys.finance_brief.news.refresh`）。
 
-**v3 后**：不再需要。`mod.fb.<cap>` 命名空间直接在 `apps/finance-brief/src/datasources.rs`
+**v3 后**：不再需要。`mod.fb.<cap>` 命名空间直接在 `apps/desktop/src/datasources.rs`
 注册到主 VM，与 sys.X 命名空间解耦。catalog::ANSWERS 硬编码表不必扩展。
 
 ---
@@ -70,7 +70,7 @@ v3 单一方案中处理。
 
 **阻塞项**：OctoSense shell 不支持运行时动态 host-service 注册（编译期绑定）。
 
-> **v3 状态**：跳过。`apps/finance-brief/` 自身就是 host service 的承载
+> **v3 状态**：跳过。`apps/desktop/` 自身就是 host service 的承载
 > （dialog 等价物），不需要单独 crate。
 
 ---

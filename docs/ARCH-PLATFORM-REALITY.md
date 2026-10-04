@@ -6,7 +6,7 @@
 
 **结论先行**：finance-brief v3（`feat/one-octoscript` 分支）走**单一**
 octoscript-makepad 管线。Sys.X 不再是 finance-brief 的命名空间；host
-capability 通过 `mod.fb.<cap>` 在 `apps/finance-brief/src/datasources.rs`
+capability 通过 `mod.fb.<cap>` 在 `apps/desktop/src/datasources.rs`
 直接注册到主 VM。
 
 ---
@@ -21,7 +21,7 @@ flowchart LR
         A["bundle/screens/*.octoscript<br/>_kit + 12 屏 + _index"]
     end
 
-    subgraph S2["octoscript-render crate（apps/finance-brief 直接用）"]
+    subgraph S2["octoscript-render crate（apps/desktop 直接用）"]
         B["build(&src, register_stub_capabilities)<br/>→ UiNode tree<br/>(make-script VM parse + walk)"]
     end
 
@@ -60,12 +60,12 @@ flowchart LR
 | 评估 | `octoscript_render::build(&src, register)` | `Octoscript-Makepad/crates/octoscript-render/src/lib.rs` | 解析 token + 转 UiNode（VM 评估） |
 | 翻译 | `octoscript_makepad::to_makepad_ui(&UiNode)` | `Octoscript-Makepad/crates/octoscript-makepad/src/lib.rs` | UiNode → makepad dialect string |
 | Kit 状态注入 | `octoscript_makepad::kit::with_state_sized(route, dark, t, vw, vh, &src)` | `Octoscript-Makepad/crates/octoscript-makepad/src/kit.rs` | 把 st 注入源（route + 时钟 + viewport） |
-| 主 VM 挂载 | `cx.with_vm(vm => vm.eval_with_append_source(...))` | `apps/finance-brief/src/lib.rs:268-273` | 评估 makepad dialect 到 View |
-| Splash mount | `host.view = view` | `apps/finance-brief/src/lib.rs:275-277` | Splash.view 替换 |
+| 主 VM 挂载 | `cx.with_vm(vm => vm.eval_with_append_source(...))` | `apps/desktop/src/lib.rs:268-273` | 评估 makepad dialect 到 View |
+| Splash mount | `host.view = view` | `apps/desktop/src/lib.rs:275-277` | Splash.view 替换 |
 
 ### §1.3 finance-brief 入口（BAKED 拼接）
 
-`apps/finance-brief/src/lib.rs:74-93`：
+`apps/desktop/src/lib.rs:74-93`：
 
 ```rust
 const BAKED: &str = kit![
@@ -95,7 +95,7 @@ const BAKED: &str = kit![
 ```mermaid
 flowchart LR
     SCR[.octoscript screen<br/>sget(key, default)]
-    HF[mod.fb.<cap> handler<br/>apps/finance-brief/src/datasources.rs]
+    HF[mod.fb.<cap> handler<br/>apps/desktop/src/datasources.rs]
     ADP[native/src/adapters/<x>.rs<br/>reqwest + JsonToolContract]
     CACHE[in-memory cache<br/>per capability]
 
@@ -105,7 +105,7 @@ flowchart LR
     CACHE -- next sget --> SCR
 ```
 
-详细 host.fetch 名称 → capability 名映射见 `apps/finance-brief/src/datasources.rs:23-58`。
+详细 host.fetch 名称 → capability 名映射见 `apps/desktop/src/datasources.rs:23-58`。
 
 ---
 
@@ -141,7 +141,7 @@ v3 单一方案下：finance-brief 不依赖 sys.X。Capability 由 `mod.fb.<cap
 
 ### §3.2 v3 实际采用（方案 Z 的"精简"）
 
-`apps/finance-brief/src/datasources.rs`：
+`apps/desktop/src/datasources.rs`：
 
 - 在 `App::script_mod` 钩子中调 `register_capability_handlers(vm)`
 - 18 个 `mod.fb.<cap>` 注册到主 VM
@@ -158,7 +158,7 @@ v3 单一方案下：finance-brief 不依赖 sys.X。Capability 由 `mod.fb.<cap
 
 ### §4.1 已落地
 
-- ✅ `apps/finance-brief/` Rust app 骨架
+- ✅ `apps/desktop/` Rust app 骨架
 - ✅ `bundle/screens/*.octoscript` × 14
 - ✅ `native/src/adapters/` 9 个 adapter（保留 v2）
 - ✅ `bundle/workflow.octoscript` 7 fn（保留 v2，挂上 screens）
@@ -166,8 +166,8 @@ v3 单一方案下：finance-brief 不依赖 sys.X。Capability 由 `mod.fb.<cap
 
 ### §4.2 半落地（partial）
 
-- ⚠️ `apps/finance-brief/src/datasources.rs` 18 fn stub，未调 9 adapter
-- ⚠️ `apps/finance-brief/src/lib.rs::script_mod` 未注册 `makepad_plot` widget
+- ⚠️ `apps/desktop/src/datasources.rs` 18 fn stub，未调 9 adapter
+- ⚠️ `apps/desktop/src/lib.rs::script_mod` 未注册 `makepad_plot` widget
 
 ### §4.3 未落地
 
@@ -188,7 +188,7 @@ Octoscript 路径后，主因转为"上游 catalog 硬编码"、"shell host-serv
 1. **v3 唯一管线**：`.octoscript` → `octoscript-render::build` → `octoscript-makepad::to_makepad_ui` → 主 VM 评估 → `Splash.view` → native widget
 2. **数据回环**：`mod.fb.<cap>` handler → 9 adapter → cache → sget re-render
 3. **不再依赖 sys.X**：finance-brief 自有 `mod.fb.*` 命名空间，无需改上游 catalog
-4. **host-service crate 不必建**：`apps/finance-brief/` 自身就是 host service 承载
+4. **host-service crate 不必建**：`apps/desktop/` 自身就是 host service 承载
 
 ---
 
