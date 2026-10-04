@@ -1,3 +1,4 @@
+> Re-verified 2026-10-04: content unchanged; 127 + 7 PASS still holds.
 === octoscript-capabilities tests ===
 
 running 127 tests
@@ -57,3 +58,16 @@ tests::rejects_keywords_that_do_not_apply_to_the_declared_type: test
 tests::rejects_schemas_larger_than_the_source_budget: test
 tests::supports_schema_annotations_but_rejects_unknown_keywords: test
 tests::validates_nested_object_array_and_scalar_constraints: test
+
+### 17-capability coverage gap (Phase 2)
+
+Per Q-B 决策，capability 总盘扩展到 17（11 数据 + 3 storage + 3 stream）。3 个
+新增 stream.* capability（`stream.subscribe` / `stream.unsubscribe` /
+`stream.frequency.set`）目前 **无 unit test 覆盖**（`octoscript-capabilities` 127
+case 不含上述调用路径；`octoscript-schema` 7 case 不含 `stream.schema.json`）。
+
+**本轮不做**（留 Phase 2）：
+- 不写 `stream.subscribe` / `stream.unsubscribe` / `stream.frequency.set` 的 capability 单测
+- 不写 `stream.schema.json` / `datasource.schema.json` 的 schema 验证测试
+
+**Phase 2 任务卡**（不在本 TODO）：补 3 个 stream capability 单测 + 2 个 schema 验证测试。

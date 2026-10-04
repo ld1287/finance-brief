@@ -1,114 +1,21 @@
-# quote_list.card — Screen #7 of 12: 行情看盘 (Quote Watchlist)
-# Phase 3.5 B-1: 4 independent sys.movers sources, one per tab.
+# ledger finance-brief-quote_list@0.3.0
+# level:   L0
+# model:   quote_list
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-source a_movers      sys.movers(count: 30, fields: [ticker, name, last, change, pct, volume, currency])
-source us_movers     sys.movers(count: 30, fields: [ticker, name, last, change, pct, volume, currency])
-source fx_movers     sys.movers(count: 20, fields: [ticker, name, last, change, pct])
-source crypto_movers sys.movers(count: 20, fields: [ticker, name, last, change, pct, volume, currency])
-source env.locale    sys.locale()
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state selected_tab { shape: enum[a, us, fx, crypto], initial: .a }
-state selected     { shape: text, initial: "" }
-
-event set_tab   { selected_tab: set($value) }
-event open_kline { selected: set($value) }
-event back       { selected: clear, selected_tab: set(.a) }
-
-copy hdr       { class: vocabulary, en: "Watchlist",                   zh: "行情看盘" }
-copy tab_a     { class: vocabulary, en: "A-shares",                    zh: "A 股" }
-copy tab_us    { class: vocabulary, en: "US",                          zh: "美股" }
-copy tab_fx    { class: vocabulary, en: "FX",                          zh: "外汇" }
-copy tab_cry   { class: vocabulary, en: "Crypto",                      zh: "加密" }
-copy lbl_name  { class: vocabulary, en: "Name",                        zh: "名称" }
-copy lbl_last  { class: vocabulary, en: "Last",                        zh: "最新价" }
-copy lbl_pct   { class: vocabulary, en: "Change %",                    zh: "涨跌幅" }
-copy lbl_vol   { class: vocabulary, en: "Volume",                      zh: "成交量" }
-copy back_lbl  { class: vocabulary, en: "‹ Main",                      zh: "‹ 主界面" }
-copy loading   { class: vocabulary, en: "Loading quotes…",             zh: "正在获取行情…" }
-copy offline   { class: vocabulary, en: "Can't reach the data source", zh: "无法获取行情" }
-copy footer    { class: vocabulary, en: "Tap a row to open K-line",    zh: "点击行进入 K 线" }
-copy back      { class: vocabulary, en: "Back",                        zh: "返回" }
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "Quotes",   zh: "行情看盘" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
 view root Surface(pad: .page) {
-  Chip(text: copy.back, on_tap: back)
-  header
-  tabs
-  list
-  footer
-}
-
-view header Row(align: .center, gap: 10) {
-  Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
-  TextTitle(text: copy.hdr)
-}
-
-view tabs Row(gap: 6) {
-  Chip(text: copy.tab_a,   on_tap: set_tab, value: .a,      active: selected_tab == .a)
-  Chip(text: copy.tab_us,  on_tap: set_tab, value: .us,     active: selected_tab == .us)
-  Chip(text: copy.tab_fx,  on_tap: set_tab, value: .fx,     active: selected_tab == .fx)
-  Chip(text: copy.tab_cry, on_tap: set_tab, value: .crypto, active: selected_tab == .crypto)
-}
-
-view list Panel {
-  when selected_tab == .a {
-    when a_movers.$state == .pending { TextBody(text: copy.loading) }
-    when a_movers.$state == .failed  { TextBody(text: copy.offline) }
-    when a_movers.$state == .ready {
-      for q, i in a_movers key q.ticker {
-        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
-          TextRow(text: q.name, width: .fill)
-          TextValue(value: q.last, format: .money)
-          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-          TextCaption(value: q.volume)
-        }
-        Rule()
-      }
-    }
-  }
-  when selected_tab == .us {
-    when us_movers.$state == .pending { TextBody(text: copy.loading) }
-    when us_movers.$state == .failed  { TextBody(text: copy.offline) }
-    when us_movers.$state == .ready {
-      for q, i in us_movers key q.ticker {
-        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
-          TextRow(text: q.name, width: .fill)
-          TextValue(value: q.last, format: .money)
-          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-          TextCaption(value: q.volume)
-        }
-        Rule()
-      }
-    }
-  }
-  when selected_tab == .fx {
-    when fx_movers.$state == .pending { TextBody(text: copy.loading) }
-    when fx_movers.$state == .failed  { TextBody(text: copy.offline) }
-    when fx_movers.$state == .ready {
-      for q, i in fx_movers key q.ticker {
-        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
-          TextRow(text: q.ticker, width: .fill)
-          TextValue(value: q.last, format: .ratio)
-          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-        }
-        Rule()
-      }
-    }
-  }
-  when selected_tab == .crypto {
-    when crypto_movers.$state == .pending { TextBody(text: copy.loading) }
-    when crypto_movers.$state == .failed  { TextBody(text: copy.offline) }
-    when crypto_movers.$state == .ready {
-      for q, i in crypto_movers key q.ticker {
-        Row(align: .center, gap: 8, on_tap: open_kline, value: q.ticker) {
-          TextRow(text: q.name, width: .fill)
-          TextValue(value: q.last, format: .money)
-          TextValue(value: q.pct, format: .signed_pct, tint: q.change)
-          TextCaption(value: q.volume)
-        }
-        Rule()
-      }
-    }
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
   }
 }
-
-view footer TextCaption(text: copy.footer)

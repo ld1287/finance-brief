@@ -1,5 +1,10 @@
 # Makepad Widget 兼容性 — finance-brief Octoscript 重写 Phase 1
 
+> **文档角色**：本文档 = Phase 1 widget 兼容性结论（12 屏 → octoscript-makepad L0 widget map，40 widget 总表）。
+> **补充文档**：`docs/WIDGET-COMPATIBILITY.md` = Layer -1 makepad widget 详细分析（含已知坑、TODO、headless GPU 限制、accessibility gap）。
+> **两者互补**：本文档负责"哪些 widget 可用"，WIDGET-COMPATIBILITY.md 负责"具体 widget 怎么用 + 哪些坑"。
+> Re-verified 2026-10-04: 角色分工明确化。
+
 > 验证结论：`octoscript-makepad` L0 渲染管线（`octoscript-render` VM → `UiNode`
 > → `to_makepad_ui` 翻译 → makepad Splash widget set）覆盖了 finance-brief 12
 > 屏的全部 widget 需求。本文档给出（1）makepad widget ↔ octoscript-makepad

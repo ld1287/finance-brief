@@ -120,6 +120,7 @@
   - 二者并存，Phase 2 必须选定其一（建议沿用 R-3/R-4 的复数形式以匹配 schema 文件名 `quote.schema.json` 的现有命名）。
 - ⚠️ `stream.subscribe` / `stream.unsubscribe` / `stream.frequency.set`：仅出现在 TODO 文件 Q-B 段（line 46），未出现在 R-3/R-4 Phase 1 文档——这是 Q-B 新增 capability，**非冲突**而是 Phase 2 待补内容。
 
+> **注 2026-10-04**：实测 `grep "quotes\." docs/R-3-octoscript-platform.md docs/R-4-l0-cards.md` = 0 命中。R-3:284 用 `quote.candles` (单数)，R-3:285 用 `quote.snapshot` (单数)，R-4:178-179 同上（屏 6/7 capability 列）。本 finding 系 reviewer 误判，capability 列单复数已统一单数（无需修 R-3 / R-4）。
 ---
 
 ## 总结

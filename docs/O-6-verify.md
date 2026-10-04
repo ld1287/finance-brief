@@ -3,6 +3,7 @@
 Phase 1 verification of the `octoscript-workflow` crate against the two
 canonical example scripts shipped in `octoscript/examples/`.
 
+> Re-verified 2026-10-04: content unchanged; 97/97 PASS + 2 example PASS still holds.
 ## Crate layout (context)
 
 - Crate root: `octoscript/crates/octoscript-workflow/`

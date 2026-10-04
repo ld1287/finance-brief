@@ -1,84 +1,21 @@
-# ledger finance-brief-research-list@0.3.0
+# ledger finance-brief-research_list@0.3.0
 # level:   L0
 # model:   research_list
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-source topics      sys.topics(fields: [name, top_title, top_points, top_id])   # 4 行 topic 卡片
-source env.locale  sys.locale()
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state topic_active { shape: enum[all, macro, industry, company, crypto], initial: .all }   # 主题过滤
-state selected     { shape: text, initial: "" }                                              # "" ⇒ list, topic.name ⇒ detail
-
-event set_topic    { topic_active: set($value) }                                              # 切主题
-event open_topic   { selected: set($value) }                                                  # 进 detail
-event refresh      { topic_active: clear }                                                    # 占位;host 拦截为 research.list
-event back         { topic_active: set(.all), selected: clear }                              # 返回 launcher
-
-copy hdr          { class: vocabulary, en: "Research",                                  zh: "研究卡" }
-copy subtitle     { class: vocabulary, en: "LLM briefs · self-curated",                 zh: "LLM 摘要 · 自选" }
-copy back_lbl     { class: vocabulary, en: "‹ Main",                                    zh: "‹ 主界面" }
-copy refresh_lbl  { class: vocabulary, en: "Refresh",                                   zh: "刷新" }
-copy topic_all    { class: vocabulary, en: "All",                                       zh: "全部" }
-copy topic_mac    { class: vocabulary, en: "Macro",                                     zh: "宏观" }
-copy topic_ind    { class: vocabulary, en: "Industry",                                  zh: "行业" }
-copy topic_com    { class: vocabulary, en: "Company",                                   zh: "公司" }
-copy topic_cry    { class: vocabulary, en: "Crypto",                                    zh: "加密" }
-copy status       { class: vocabulary, en: "Status",                                    zh: "状态" }
-copy loading      { class: vocabulary, en: "Fetching research…",                        zh: "正在获取研究…" }
-copy offline      { class: vocabulary, en: "Can't reach the research service",          zh: "无法获取研究" }
-copy empty        { class: vocabulary, en: "No research for this topic",                zh: "该主题暂无研究" }
-copy pts          { class: vocabulary, en: "pts",                                       zh: "分" }
-copy footer       { class: vocabulary, en: "Last synced",                               zh: "最后同步" }
-copy back         { class: vocabulary, en: "Back",                                       zh: "返回" }
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "Research List",   zh: "研究卡列表" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
 view root Surface(pad: .page) {
-  Chip(text: copy.back, on_tap: back)
-  header
-  topic_chips
-  status
-  topic_list
-  footer
-}
-
-view header Row(align: .center, gap: 10) {
-  Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
-  Col(gap: 2, width: .fill) {
-    TextTitle(text: copy.hdr)
-    TextCaption(text: copy.subtitle)
-  }
-  Chip(text: copy.refresh_lbl, on_tap: refresh, value: "1")
-}
-
-view topic_chips Row(gap: 6) {
-  Chip(text: copy.topic_all, on_tap: set_topic, value: .all,      active: topic_active == .all)
-  Chip(text: copy.topic_mac, on_tap: set_topic, value: .macro,    active: topic_active == .macro)
-  Chip(text: copy.topic_ind, on_tap: set_topic, value: .industry, active: topic_active == .industry)
-  Chip(text: copy.topic_com, on_tap: set_topic, value: .company,  active: topic_active == .company)
-  Chip(text: copy.topic_cry, on_tap: set_topic, value: .crypto,   active: topic_active == .crypto)
-}
-
-view status TextCaption(text: copy.status)
-
-view topic_list Panel {
-  when topics.$state == .pending { TextBody(text: copy.loading) }
-  when topics.$state == .failed  { TextBody(text: copy.offline) }
-  when topics.$state == .ready {
-    for t, i in topics key t.name {
-      Card(on_tap: open_topic, value: t.name) {
-        Col {
-          TextCaption(text: t.name, width: .label)
-          TextBody(text: t.top_title, width: .fill)
-          Row(gap: 6) {
-            TextCaption(value: t.top_points, suffix: copy.pts)
-            TextCaption(text: copy.status)
-          }
-        }
-      }
-      Rule()
-    }
-  }
-  when topics.$state != .ready {
-    when topics.$state == .ready { }       # 空 when 块,确保 never unreachable
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
   }
 }
-
-view footer TextCaption(text: copy.footer)

@@ -1,39 +1,21 @@
-# ledger finance-brief-news-detail@0.3.0
+# ledger finance-brief-news_detail@0.3.0
 # level:   L0
 # model:   news_detail
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-source story    sys.news_item(id: state.selected, fields: [id, title, author, points, comments, url])
-source env.locale sys.locale()
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state selected { shape: text, initial: "" }    # "" ⇒ 不渲染（list 路径已发；详情总从 list 跳转进）
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "News Detail",   zh: "新闻详情" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
-event back         { selected: clear }
-event read_story   { selected: set($value) }       # 占位;屏跳转由 host 拦截 chip value
-
-copy hdr        { class: vocabulary, en: "新闻详情",      zh: "新闻详情" }
-copy back_lbl   { class: vocabulary, en: "‹ 新闻简报",    zh: "‹ 新闻简报" }
-copy lbl_pts    { class: vocabulary, en: "分数",          zh: "分数" }
-copy lbl_cmts   { class: vocabulary, en: "评论",          zh: "评论" }
-copy lbl_by     { class: vocabulary, en: "作者",          zh: "作者" }
-copy back       { class: vocabulary, en: "Back",         zh: "返回" }
-
-view root  Surface(pad: .page) {
-  Chip(text: copy.back, on_tap: back)
-  detail
+view root Surface(pad: .page) {
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
+  }
 }
-
-view detail  Col {
-               Row(align: .center, gap: 10, on_tap: back) {
-                 TextRow(text: copy.back_lbl)
-               }
-               TextCaption(text: copy.hdr)
-               TextTitle(text: story.title, width: .fill)
-               Row(gap: 8) {
-                 TextCaption(value: story.points, suffix: copy.lbl_pts)
-                 TextCaption(value: story.comments, suffix: copy.lbl_cmts)
-                 TextCaption(text: copy.lbl_by)
-                 TextCaption(text: story.author)
-               }
-               TextCaption(text: story.url)
-               Chip(text: "打开原文 ↗", on_tap: read_story, value: story.url)
-             }

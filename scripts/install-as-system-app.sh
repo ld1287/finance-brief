@@ -32,11 +32,11 @@ mkdir -p "$DEST" "$DEST/screenshots"
 # The runtime looks up `card_source` = page.card; without it the install falls back to the stock
 # 809-byte splash. The packer walks the bundle dir recursively, so every referenced asset must
 # live here.
+# Only *.card files are copied: main.splash is Path 1 (card-host interactive UI) and must not enter the shell pack (the shell ignores it but the install would drift).
 cp "$APP/bundle"/*.card "$DEST/"
 cp "$APP/bundle/launcher.card" "$DEST/page.card"
 echo '{}' > "$DEST/page.data.json"
 cp -r "$APP/bundle/schema" "$DEST/"
-cp "$APP/bundle/capabilities.toml" "$DEST/"
 cp "$APP/bundle/workflow.octoscript" "$DEST/"
 cp -r "$APP/bundle/kit" "$DEST/"
 # Launcher art: the packer looks for icon.svg/icon.png at the bundle root.

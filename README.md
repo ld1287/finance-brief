@@ -1,5 +1,20 @@
 # finance-brief
 
+## 在 OctoSense 上运行
+
+finance-brief 当前在 OctoSense 生态中有**两条工作路径**（per [`docs/PATH3-REALITY.md`](docs/PATH3-REALITY.md)）：
+
+| 路径 | 状态 | 入口 | 启动命令 |
+|------|------|------|---------|
+| **Path 1**（card-host 交互 UI） | ✅ 已 work | `bundle/main.splash` | `sh scripts/run-finance-brief.sh` |
+| **Path 3 lite**（shell glance tile） | ✅ 已 work（2026-10-04） | 12 个 `bundle/*.card` 静态模板 | OctoSense shell 启动后自动加载 |
+
+**目标**：Path 3 fullscreen launch（OctoSense shell 全屏 launch finance-brief 交互 UI），需 [OctoScript#56](https://github.com/OctoSense-org/OctoScript/issues/56) 桥接 + 给 finance-brief 加 host-service crate。
+
+**架构演进**：当前 Path 1 + Path 3 lite 是过渡形态；Path 3 full 落地后，`bundle/main.splash` 将被 `main.octoscript`（或 `page.card`）替换，12 个 `.card` 将用真实 `source sys.finance_brief.*` 调用。
+
+详细现状、依赖、演进步骤见 [`docs/PATH3-REALITY.md`](docs/PATH3-REALITY.md)。
+
 ## 1. 项目
 
 OctoSense 受控脚本 App（`bundle/` 为唯一提交单元）。把公开免密接口的财经要闻与行情聚合到「要闻 / A股 / 美股 / 加密 / 外汇」五个标签下，支持收藏与离线示例数据回退；所有数据仅用于演示，不构成投资建议。

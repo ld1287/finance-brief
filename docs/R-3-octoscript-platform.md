@@ -5,6 +5,8 @@
 **上下文**：`MVP-TODO.md` Phase 1 前置（R-3）
 **输出摘要**：octoscript 是一个 **capability-first 的可生成脚本运行时**；finance-brief 的 12 屏中 **9 L0 + 3 L1**（per 附录 A Q-A 决策）。
 
+> Re-verified 2026-10-04: §5 加 17-capability sub-table (per Q-B 新增 3)。
+
 ---
 
 ## 0. 调研路径与硬约束
@@ -287,6 +289,32 @@ view body {
 | # 11 | 事件流 stub | mock 快讯 + 订单簿 stub | **L1** | `source stream stream.mock` + `TextValue(value: book.bid - book.ask)` 等 spread expression | 需要 L1 算 spread / 中间价 |
 | # 12 | 备用槽 | 数据源状态页（5×8 字段） | **L1**（state 部分） + L0（其它） | `state ok_count { shape: counter }` + `TextHero(value: ok_count / total)` 等 ratio expression | Q-A 明确"数据源状态页 state 部分"需要 L1 expression（占比、累计） |
 
+#### 5.0.1 17-capability 总盘清单（per Q-B 新增 3）
+
+> 数据源（来源）：`.todo-octoscript-rewrite-2026-10-02.md` §5.1 capability → adapter 映射表
+> 单复数统一单数（per R-4 §3 保持一致：`quote.candles` / `quote.snapshot`，**非** `quotes.X`）
+> 3 个 stream.* capability 为 Q-B 新增（v1 14 → v1+3 = 17）
+
+| # | capability | 屏归属 | L0/L1 | 数据源 | 备注 |
+|---|---|---|---|---|---|
+| 1 | `news.refresh` | #2 新闻简报列表 | L0 | `news_sina.rs` → `feed.mix.sina.com.cn` | 入站 feed，10s 自动 + 下拉刷新 |
+| 2 | `news.read` | #3 新闻详情 | L0 | `news_sina.rs`（本地缓存） | 详情 fetch（命中缓存即返回） |
+| 3 | `quote.snapshot` (tab=a/us/hk) | #7 行情列表合并 | L0 | `quote_tencent.rs` → `qt.gtimg.cn` | A 股 / 港股 / 美股 tab 用 Tencent |
+| 4 | `quote.snapshot` (tab=crypto) | #7 行情列表合并 | L0 | `quote_hyperliquid.rs` → `api.hyperliquid.xyz` | 加密币 tab 用 Hyperliquid |
+| 5 | `quote.snapshot` (tab=fx) | #7 行情列表合并 | L0 | `quote_frankfurter.rs` → `api.frankfurter.dev` | 外汇 tab 用 Frankfurter |
+| 6 | `quote.snapshot` (kind=us, real-time) | #7 行情列表合并 | L0 | **`quote_stooq.rs`** → `stooq.com CSV` | 美股 real-time 用 Stooq（per Q-R1: B，替换 `quote_nasdaq.rs`） |
+| 7 | `quote.candles` | #6 K线看盘 | **L1** | `synth_candles.rs`（合成） | §9 arithmetic：涨跌 / 振幅计算 |
+| 8 | `research.list` | #4 研究卡列表 | L0 | （内置样本） | 5 类研究卡模板枚举分发 |
+| 9 | `research.read` | #5 研究卡详情 | L0 | （内置样本） | MVP 仅事实层（蓝实线） |
+| 10 | `stream.tick` | #11 事件流 stub | **L1** | `stream_tick.rs`（hyperliquid/orderbook + mock 快讯） | mock ticker + orderbook 聚合；spread / mid 算 |
+| 11 | `datasource.status` | #12 数据源状态页 | **L1**（state 部分） | `datasource_status.rs`（audit log 聚合） | 5×8 字段；占比 / `avg(latency)` 算 |
+| 12 | `fav.list` | #8 收藏 / 关注 | L0 | （内置 fs） | app jail 持久化 |
+| 13 | `fav.toggle` | #8 收藏 / 关注 | L0 | （内置 fs） | `toggle($favs, x)` transition（§3） |
+| 14 | `settings` (load + save) | #9 设置 | L0 | （内置 fs） | load / save 合并为 1 capability（双 schema 入口） |
+| 15 | **`stream.subscribe`** | #11 事件流 stub | **L1** | **`stream_subscribe.rs`**（host state 切换） | **Q-B 新增 3**：进入 #11 时开启后台 tick |
+| 16 | **`stream.unsubscribe`** | #11 事件流 stub | **L1** | **`stream_subscribe.rs`**（host state 切换） | **Q-B 新增 3**：离开 #11 或点暂停时停止 tick |
+| 17 | **`stream.frequency.set`** | #9 设置 | L0 | **`stream_subscribe.rs`**（host state 切换） | **Q-B 新增 3**：#9 频率切换 chip（1s / 5s / 10s）写入 host state |
+
 ### 5.1 L1 表达式的精确作用域（per ui-profile-l0.md §9）
 
 - **允许 L1 expression 的位置**：
@@ -313,6 +341,10 @@ view body {
 - 12 屏中 **L0 = 9**（#1, 2, 3, 4, 5, 7, 8, 9, 10）
 - 12 屏中 **L1 = 3**（#6, 11, 12 state 部分）
 - 与附录 A Q-A 一致：`9 L0 + 3 L1（K线 / 事件流 / 数据源状态页 state 部分）`
+
+### 5.4 17-capability 总盘
+
+总盘 **17 = 11 数据**（news×2 + `quote.snapshot`×4 + `quote.candles`×1 + research×2 + `stream.tick`×1 + `datasource.status`×1）+ **3 storage**（`fav.list` + `fav.toggle` + `settings` load/save）+ **3 stream**（`stream.subscribe` / `stream.unsubscribe` / `stream.frequency.set`，**per Q-B 新增**）。完整 17 行见 §5.0.1 sub-table。
 
 ---
 

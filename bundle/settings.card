@@ -1,128 +1,21 @@
 # ledger finance-brief-settings@0.3.0
 # level:   L0
 # model:   settings
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-# source: 屏 #9 完全靠 local state,无 sys.X / env.locale 依赖
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state theme           { shape: enum[light, dark, auto], initial: .auto }
-state frequency       { shape: enum[s1, s5, s10],     initial: .s5  }
-state ds_sina         { shape: enum[on, off],        initial: .on  }                      # 新浪财经
-state ds_tencent      { shape: enum[on, off],        initial: .on  }                      # 腾讯行情
-state ds_stooq        { shape: enum[on, off],        initial: .on  }                      # Stooq 美股
-state ds_hyperliquid  { shape: enum[on, off],        initial: .on  }                      # Hyperliquid
-state ds_frankfurter  { shape: enum[on, off],        initial: .on  }                      # Frankfurter 外汇
-
-event back            { theme: clear }                                                    # 占位;host 拦截为 nav.pop
-event set_theme       { theme: set($value) }
-event set_frequency   { frequency: set($value) }
-event toggle_sina     { ds_sina: cycle(.on, .off) }
-event toggle_tencent  { ds_tencent: cycle(.on, .off) }
-event toggle_stooq    { ds_stooq: cycle(.on, .off) }
-event toggle_hyper    { ds_hyperliquid: cycle(.on, .off) }
-event toggle_fran     { ds_frankfurter: cycle(.on, .off) }
-event reset_settings  { theme: set(.auto), frequency: set(.s5), ds_sina: set(.on), ds_tencent: set(.on), ds_stooq: set(.on), ds_hyperliquid: set(.on), ds_frankfurter: set(.on) }
-event open_disclaimer { theme: clear }                                                    # 占位;host 拦截为 nav.push(disclaimer)
-
-copy hdr             { class: vocabulary, en: "Settings",                                 zh: "设置" }
-copy subtitle        { class: vocabulary, en: "v0.3 MVP",                                 zh: "v0.3 MVP" }
-copy back_lbl        { class: vocabulary, en: "‹ Main",                                   zh: "‹ 主界面" }
-copy theme_hd        { class: vocabulary, en: "Theme",                                    zh: "主题" }
-copy theme_light     { class: vocabulary, en: "Light",                                    zh: "浅色" }
-copy theme_dark      { class: vocabulary, en: "Dark",                                     zh: "深色" }
-copy theme_auto      { class: vocabulary, en: "Auto",                                     zh: "跟随系统" }
-copy freq_hd         { class: vocabulary, en: "Stream frequency",                          zh: "事件流刷新频率" }
-copy freq_hint       { class: vocabulary, en: "Lower is fresher; raises battery",         zh: "频率越高越耗电" }
-copy freq_1s         { class: vocabulary, en: "1s",                                       zh: "1 秒" }
-copy freq_5s         { class: vocabulary, en: "5s",                                       zh: "5 秒" }
-copy freq_10s        { class: vocabulary, en: "10s",                                      zh: "10 秒" }
-copy ds_hd           { class: vocabulary, en: "Data sources",                             zh: "数据源" }
-copy ds_sina         { class: vocabulary, en: "Sina Finance",                             zh: "新浪财经" }
-copy ds_tencent      { class: vocabulary, en: "Tencent Quote",                            zh: "腾讯行情" }
-copy ds_stooq        { class: vocabulary, en: "Stooq US",                                 zh: "Stooq 美股" }
-copy ds_hyperliquid  { class: vocabulary, en: "Hyperliquid",                              zh: "Hyperliquid" }
-copy ds_frankfurter  { class: vocabulary, en: "Frankfurter",                              zh: "Frankfurter" }
-copy lbl_on          { class: vocabulary, en: "ON",                                       zh: "开" }
-copy lbl_off         { class: vocabulary, en: "OFF",                                      zh: "关" }
-copy pw_hd           { class: vocabulary, en: "Push window",                               zh: "推送时段" }
-copy pw_value        { class: vocabulary, en: "09:00–18:00 Asia/Shanghai",                zh: "09:00–18:00 (北京时间)" }
-copy version         { class: vocabulary, en: "finance-brief v0.3.0",                     zh: "finance-brief v0.3.0" }
-copy reset_chip      { class: vocabulary, en: "Reset to defaults",                        zh: "恢复默认设置" }
-copy disclaimer_chip { class: vocabulary, en: "Disclaimer →",                             zh: "免责声明 →" }
-copy back            { class: vocabulary, en: "Back",                                     zh: "返回" }
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "Settings",   zh: "设置" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
 view root Surface(pad: .page) {
-  Chip(text: copy.back, on_tap: back)
-  header
-  theme_section
-  frequency_section
-  datasource_section
-  push_window_section
-  about_section
-}
-
-view header Col {
-  Row(align: .center, gap: 10, on_tap: back) { TextRow(text: copy.back_lbl) }
-  TextTitle(text: copy.hdr)
-  TextCaption(text: copy.subtitle)
-}
-
-view theme_section Col {
-  TextCaption(text: copy.theme_hd)
-  Row(gap: 6) {
-    Chip(text: copy.theme_light, on_tap: set_theme, value: .light, active: theme == .light)
-    Chip(text: copy.theme_dark,  on_tap: set_theme, value: .dark,  active: theme == .dark)
-    Chip(text: copy.theme_auto,  on_tap: set_theme, value: .auto,  active: theme == .auto)
-  }
-}
-
-view frequency_section Col {
-  TextCaption(text: copy.freq_hd)
-  TextBody(text: copy.freq_hint)
-  Row(gap: 6) {
-    Chip(text: copy.freq_1s,  on_tap: set_frequency, value: .s1,  active: frequency == .s1)
-    Chip(text: copy.freq_5s,  on_tap: set_frequency, value: .s5,  active: frequency == .s5)
-    Chip(text: copy.freq_10s, on_tap: set_frequency, value: .s10, active: frequency == .s10)
-  }
-}
-
-view datasource_section Col {
-  TextCaption(text: copy.ds_hd)
-  Row(align: .center, gap: 8) {
-    TextRow(text: copy.ds_sina, width: .fill)
-    Chip(text: copy.lbl_on,  on_tap: toggle_sina, value: .on,  active: ds_sina == .on)
-    Chip(text: copy.lbl_off, on_tap: toggle_sina, value: .off, active: ds_sina == .off)
-  }
-  Row(align: .center, gap: 8) {
-    TextRow(text: copy.ds_tencent, width: .fill)
-    Chip(text: copy.lbl_on,  on_tap: toggle_tencent, value: .on,  active: ds_tencent == .on)
-    Chip(text: copy.lbl_off, on_tap: toggle_tencent, value: .off, active: ds_tencent == .off)
-  }
-  Row(align: .center, gap: 8) {
-    TextRow(text: copy.ds_stooq, width: .fill)
-    Chip(text: copy.lbl_on,  on_tap: toggle_stooq, value: .on,  active: ds_stooq == .on)
-    Chip(text: copy.lbl_off, on_tap: toggle_stooq, value: .off, active: ds_stooq == .off)
-  }
-  Row(align: .center, gap: 8) {
-    TextRow(text: copy.ds_hyperliquid, width: .fill)
-    Chip(text: copy.lbl_on,  on_tap: toggle_hyper, value: .on,  active: ds_hyperliquid == .on)
-    Chip(text: copy.lbl_off, on_tap: toggle_hyper, value: .off, active: ds_hyperliquid == .off)
-  }
-  Row(align: .center, gap: 8) {
-    TextRow(text: copy.ds_frankfurter, width: .fill)
-    Chip(text: copy.lbl_on,  on_tap: toggle_fran, value: .on,  active: ds_frankfurter == .on)
-    Chip(text: copy.lbl_off, on_tap: toggle_fran, value: .off, active: ds_frankfurter == .off)
-  }
-}
-
-view push_window_section Col {
-  TextCaption(text: copy.pw_hd)
-  TextBody(text: copy.pw_value)
-}
-
-view about_section Col {
-  TextCaption(text: copy.version)
-  Row(gap: 8) {
-    Chip(text: copy.reset_chip,      on_tap: reset_settings,  value: "1", tone: .danger)
-    Chip(text: copy.disclaimer_chip, on_tap: open_disclaimer, value: "1")
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
   }
 }

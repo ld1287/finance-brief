@@ -1,62 +1,21 @@
 # ledger finance-brief-launcher@0.3.0
 # level:   L0
 # model:   launcher
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-source env.locale sys.locale()
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state selected { shape: text, initial: "" }        # "" ⇒ launcher root
-
-event open_news_list         { selected: set($value) }
-event open_research_list     { selected: set($value) }
-event open_quote_list        { selected: set($value) }
-event open_favorites         { selected: set($value) }
-event open_settings          { selected: set($value) }
-event open_event_stream      { selected: set($value) }
-event open_datasource_status { selected: set($value) }
-
-copy hdr     { class: vocabulary, en: "财经简报",         zh: "财经简报" }
-copy news    { class: vocabulary, en: "新闻简报",         zh: "新闻简报" }
-copy res     { class: vocabulary, en: "研究卡",           zh: "研究卡" }
-copy quote   { class: vocabulary, en: "行情看盘",         zh: "行情看盘" }
-copy fav     { class: vocabulary, en: "收藏",             zh: "收藏" }
-copy set     { class: vocabulary, en: "设置",             zh: "设置" }
-copy stream  { class: vocabulary, en: "事件流",           zh: "事件流" }
-copy ds      { class: vocabulary, en: "数据源",           zh: "数据源" }
-copy ft      { class: vocabulary, en: "v0.3 MVP · 12 屏", zh: "v0.3 MVP · 12 屏" }
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "Launcher",   zh: "主界面" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
 view root Surface(pad: .page) {
-  masthead
-  grid
-  backup
-  footer
-}
-
-view masthead Col(gap: 2) {
-  TextCaption(text: copy.hdr)
-  TextTitle(text: copy.hdr)
-}
-
-view grid Col {
-  Row(align: .center, gap: 12) {
-    Card(on_tap: open_news_list, value: "news")      { Col { TextTitle(text: copy.news)   TextBody(text: "新浪财经 RSS · 7 篇") } }
-    Card(on_tap: open_research_list, value: "res")   { Col { TextTitle(text: copy.res)    TextBody(text: "LLM 摘要 · 自选") } }
-    Card(on_tap: open_quote_list, value: "quote")    { Col { TextTitle(text: copy.quote)  TextBody(text: "新浪行情 · K 线") } }
-  }
-  Row(align: .center, gap: 12) {
-    Card(on_tap: open_favorites, value: "fav")       { Col { TextTitle(text: copy.fav)    TextBody(text: "本地书签 · 跨屏") } }
-    Card(on_tap: open_settings, value: "set")        { Col { TextTitle(text: copy.set)    TextBody(text: "语言/刷新/关于") } }
-    Card(on_tap: open_event_stream, value: "stream") { Col { TextTitle(text: copy.stream) TextBody(text: "系统事件 stub") } }
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
   }
 }
-
-view backup Col {
-  TextCaption(text: "备用槽")
-  Card(on_tap: open_datasource_status, value: "ds") {
-    Col {
-      TextTitle(text: copy.ds)
-      TextBody(text: "5×8 字段健康监控")
-    }
-  }
-}
-
-view footer TextCaption(text: copy.ft)

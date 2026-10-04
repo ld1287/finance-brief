@@ -1,80 +1,21 @@
-# kline.card — Screen #6 of 12: K线看盘 (K-line)
-# Phase 3.5 C-1: L0 ledger rewrite of widget-tree kline.octoscript.
-#                Drops CandlestickChart + L1 host state, uses catalog StockPlot.
+# ledger finance-brief-kline@0.3.0
+# level:   L0
+# model:   kline
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-source quote       sys.quote(ticker: state.kline_symbol, fields: [ticker, name, last, change, pct, open, high, low, prev, volume, mktcap, pe, currency, exchange])
-source env.locale  sys.locale()
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state kline_symbol { shape: text, initial: "" }                              # "" ⇒ empty, ticker ⇒ chart
-state kline_range  { shape: enum[m1, m5, h1, d1], initial: .d1 }              # period chip
-
-event back      { kline_symbol: clear, kline_range: set(.d1) }               # to quote_list
-event set_range { kline_range: set($value) }                                  # cycle period
-
-copy hdr        { class: vocabulary, en: "K-line",                     zh: "K 线" }
-copy back_lbl   { class: vocabulary, en: "‹ Quotes",                   zh: "‹ 行情看盘" }
-copy loading    { class: vocabulary, en: "Fetching chart…",            zh: "正在获取图表…" }
-copy offline    { class: vocabulary, en: "Can't reach the data source", zh: "无法获取数据" }
-copy empty      { class: vocabulary, en: "Pick a ticker from Quotes",   zh: "请先到行情看盘选标的" }
-copy range_1m   { class: vocabulary, en: "1m",                          zh: "1 分" }
-copy range_5m   { class: vocabulary, en: "5m",                          zh: "5 分" }
-copy range_1h   { class: vocabulary, en: "1h",                          zh: "1 时" }
-copy range_1d   { class: vocabulary, en: "1d",                          zh: "1 日" }
-copy lbl_open   { class: vocabulary, en: "Open",                        zh: "开盘" }
-copy lbl_high   { class: vocabulary, en: "High",                        zh: "最高" }
-copy lbl_low    { class: vocabulary, en: "Low",                         zh: "最低" }
-copy lbl_vol    { class: vocabulary, en: "Volume",                      zh: "成交量" }
-copy lbl_mktcap { class: vocabulary, en: "Mkt Cap",                     zh: "市值" }
-copy lbl_pe     { class: vocabulary, en: "P/E",                         zh: "市盈率" }
-copy footer     { class: vocabulary, en: "Data source: 5 sources",      zh: "数据源: 5 个" }
-copy back        { class: vocabulary, en: "Back",                        zh: "返回" }
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "K-Line",   zh: "K 线看盘" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
 view root Surface(pad: .page) {
-  Chip(text: copy.back, on_tap: back)
-  when kline_symbol == "" { empty }
-  when kline_symbol != "" { detail }
-}
-
-view empty Col {
-  Row(align: .center, gap: 10, on_tap: back) { TextRow(text: copy.back_lbl) }
-  TextTitle(text: copy.hdr)
-  TextBody(text: copy.empty, width: .fill)
-}
-
-view detail Col {
-  Row(align: .center, gap: 10) {
-    Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
-    Col(gap: 2, width: .fill) {
-      TextCaption(text: quote.name)
-      TextTitle(text: quote.ticker)
-    }
-  }
-  when quote.$state == .pending { TextBody(text: copy.loading) }
-  when quote.$state == .failed  { TextBody(text: copy.offline) }
-  when quote.$state == .ready {
-    chart
-    ranges
-    stats
-    footer
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
   }
 }
-
-view chart StockPlot(symbol: kline_symbol, range: kline_range)
-
-view ranges Row(gap: 6) {
-  Chip(text: copy.range_1m, on_tap: set_range, value: .m1, active: kline_range == .m1)
-  Chip(text: copy.range_5m, on_tap: set_range, value: .m5, active: kline_range == .m5)
-  Chip(text: copy.range_1h, on_tap: set_range, value: .h1, active: kline_range == .h1)
-  Chip(text: copy.range_1d, on_tap: set_range, value: .d1, active: kline_range == .d1)
-}
-
-view stats Grid(cols: 2) {
-  Tile(label: copy.lbl_open,   value: quote.open,   format: .money)
-  Tile(label: copy.lbl_high,   value: quote.high,   format: .money)
-  Tile(label: copy.lbl_low,    value: quote.low,    format: .money)
-  Tile(label: copy.lbl_vol,    value: quote.volume, format: .compact)
-  Tile(label: copy.lbl_mktcap, value: quote.mktcap, format: .compact)
-  Tile(label: copy.lbl_pe,     value: quote.pe,     format: .ratio)
-}
-
-view footer TextCaption(text: copy.footer)

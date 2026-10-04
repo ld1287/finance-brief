@@ -1,90 +1,21 @@
-# ledger finance-brief-research-detail@0.3.0
+# ledger finance-brief-research_detail@0.3.0
 # level:   L0
 # model:   research_detail
+#
+# Static glance tile for OctoSense shell.
+# The interactive UI lives in bundle/main.splash (Path 1 card-host).
+# Fullscreen app launch in shell requires OctoScript#56.
 
-source note      sys.dataset(id: state.selected, fields: [title, subtitle, summary, coverage, status, as_of, metric1_label, metric1_value, metric2_label, metric2_value, pick1_title, pick1_body, pick1_source, url1, pick2_title, pick2_body, pick2_source, url2, pick3_title, pick3_body, pick3_source, url3, evidence_title, evidence_body])
-source env.locale sys.locale()
+state selected { shape: text, initial: "" }    # reserved, no source
 
-state selected  { shape: text, initial: "" }                                  # "" ⇒ 不渲染,id ⇒ detail
-state fav_state { shape: enum[none, starred], initial: .none }               # 收藏 toggle 状态
-
-event back       { selected: clear, fav_state: set(.none) }                   # 返回 list
-event save_fav   { fav_state: set(.starred) }                                 # 收藏
-event unsave_fav { fav_state: set(.none) }                                    # 取消收藏
-event open_pick  { selected: set($value) }                                    # 占位;host 拦截 chip value
-
-copy hdr          { class: vocabulary, en: "Research detail",    zh: "研究卡详情" }
-copy back_lbl     { class: vocabulary, en: "‹ Research",         zh: "‹ 研究卡" }
-copy fav_lbl_on   { class: vocabulary, en: "★ Saved",             zh: "★ 已收藏" }
-copy fav_lbl_off  { class: vocabulary, en: "☆ Save",              zh: "☆ 收藏" }
-copy coverage_lbl { class: vocabulary, en: "Coverage",           zh: "覆盖" }
-copy status_lbl   { class: vocabulary, en: "Status",             zh: "状态" }
-copy as_of_lbl    { class: vocabulary, en: "As of",              zh: "截至" }
-copy summary_lbl  { class: vocabulary, en: "Summary",            zh: "摘要" }
-copy picks_hd     { class: vocabulary, en: "Top picks",          zh: "重点" }
-copy evidence_hd  { class: vocabulary, en: "Evidence",           zh: "依据" }
-copy loading      { class: vocabulary, en: "Fetching detail…",    zh: "正在获取详情…" }
-copy offline      { class: vocabulary, en: "Can't reach the research service", zh: "无法获取研究" }
-copy back         { class: vocabulary, en: "Back",                                  zh: "返回" }
+copy eyebrow  { class: vocabulary, en: "FINANCE BRIEF",  zh: "财经简报" }
+copy title    { class: vocabulary, en: "Research Detail",   zh: "研究卡详情" }
+copy hint     { class: vocabulary, en: "Launch card-host to view",  zh: "启动 card-host 查看" }
 
 view root Surface(pad: .page) {
-  Chip(text: copy.back, on_tap: back)
-  detail
-}
-
-view detail Col {
-  Row(align: .center, gap: 10) {
-    Row(align: .center, on_tap: back) { TextRow(text: copy.back_lbl) }
-    Chip(text: copy.fav_lbl_off, on_tap: save_fav, value: "1", active: fav_state == .none, width: .fit)
-    Chip(text: copy.fav_lbl_on,  on_tap: unsave_fav, value: "1", active: fav_state == .starred, tone: .danger, width: .fit)
+  Col(gap: 4) {
+    TextCaption(text: copy.eyebrow)
+    TextTitle(text: copy.title)
+    TextBody(text: copy.hint)
   }
-  TextTitle(text: note.title, width: .fill)
-  TextCaption(text: note.subtitle)
-
-  Row(gap: 8) {
-    TextCaption(text: copy.coverage_lbl)
-    TextCaption(text: note.coverage)
-    TextCaption(text: copy.status_lbl)
-    TextCaption(text: note.status)
-    TextCaption(text: copy.as_of_lbl)
-    TextCaption(text: note.as_of)
-  }
-
-  Row(gap: 12) {
-    Tile(label: note.metric1_label, value: note.metric1_value)
-    Tile(label: note.metric2_label, value: note.metric2_value)
-  }
-
-  TextCaption(text: copy.summary_lbl)
-  TextBody(text: note.summary, width: .fill)
-
-  TextCaption(text: copy.picks_hd)
-  Card(on_tap: open_pick, value: note.url1) {
-    Col {
-      TextCaption(text: copy.picks_hd, suffix: "1")
-      TextBody(text: note.pick1_title, width: .fill)
-      TextBody(text: note.pick1_body, width: .fill)
-      TextCaption(text: note.pick1_source)
-    }
-  }
-  Card(on_tap: open_pick, value: note.url2) {
-    Col {
-      TextCaption(text: copy.picks_hd, suffix: "2")
-      TextBody(text: note.pick2_title, width: .fill)
-      TextBody(text: note.pick2_body, width: .fill)
-      TextCaption(text: note.pick2_source)
-    }
-  }
-  Card(on_tap: open_pick, value: note.url3) {
-    Col {
-      TextCaption(text: copy.picks_hd, suffix: "3")
-      TextBody(text: note.pick3_title, width: .fill)
-      TextBody(text: note.pick3_body, width: .fill)
-      TextCaption(text: note.pick3_source)
-    }
-  }
-
-  TextCaption(text: copy.evidence_hd)
-  TextBody(text: note.evidence_title, width: .fill)
-  TextBody(text: note.evidence_body, width: .fill)
 }

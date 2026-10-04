@@ -10,7 +10,7 @@ target/
 Thumbs.db
 .idea/
 .vscode/
-TODO/
+DONE/
 # Splash runtime cache: the app writes cache_*.json / settings.json
 # into its storage jail (CWD-relative). Keep them local.
 # The nested folder name is the app id; do not commit it.

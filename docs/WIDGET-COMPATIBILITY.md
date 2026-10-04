@@ -17,6 +17,10 @@
 > 区别于 `docs/WIDGET-COMPAT.md`：该文件讲 octoscript-makepad L0 catalog
 > 是否能装 12 屏；本文讲 Layer -1 makepad widget 是否装下当前 splash 这 178 行。
 
+> **文档角色**：本文档 = Layer -1 makepad widget 详细分析（已知坑、TODO、headless GPU 限制、accessibility）。
+> **Phase 1 兼容性结论**：见 `docs/WIDGET-COMPAT.md`（12 屏 → octoscript-makepad L0 widget map）。
+> Re-verified 2026-10-04: 角色分工明确化。
+
 ---
 
 ## 1. SolidView

@@ -95,6 +95,54 @@ match report.root {
 
 **含义**：L0 卡片**不调用** capability——capability 在 host 端（workflow 引擎或 splash VM）执行。卡片只通过 `source path sys.X(args)` **声明数据需求**，host 在 realize 前 fulfil。
 
+### 1.5 两条路径汇流于 makepad widget 层（2026-10-04 增补）
+
+finance-brief 当前有**两条独立渲染路径**，终到 makepad widget set 但入口与 VM 评估不同。
+
+**Path 3 lite（OctoSense shell glance tile）** —— 已对齐 §1.1 完整 pipeline：
+
+```
+*.card (静态 L0 ledger, 12 模板)
+    ↓ A: octoscript-ui-l0::check_ui_l0
+    ↓ B: octoscript-ui-l0::realize
+    ↓ C: octoscript-ui-l0::makepad::lower
+    ↓ F: octoscript_makepad::l0::prepare + to_makepad_l0_ui (card-host 入口)
+    ↓ H: Splash VM build_with_capabilities
+    ↓ J: Makepad Widget Tree
+    ↓ K: Native OS Widgets
+```
+
+**Path 1（card-host script app 入口）** —— 平行分支：
+
+```
+bundle/main.splash (splash DSL, 572 行)
+    ↓ octosense_app_policy::script_source (OctoSense-App-Hub/crates/card-host/src/host.rs:117)
+    ↓ (跳过 §1.1 中的 A/B/C/F 步骤)
+    ↓ H: Splash VM 直接求值
+    ↓ J: Makepad Widget Tree
+    ↓ K: Native OS Widgets
+```
+
+**边界对比**：
+
+| 项 | Path 3 lite | Path 1 |
+|----|-------------|--------|
+| 走 §1.1 中的哪些节点 | A, B, C, F, H, J, K | H, J, K |
+| 入口文件 | 12 `.card`（`bundle/*.card`） | `bundle/main.splash` |
+| 适用场景 | shell glance 静态瓦片 | card-host 交互 UI（`scripts/run-finance-brief.sh`） |
+| 当前状态 | ✅ 已 work | ✅ 已 work（HEAD `73637fe`） |
+
+**约束**（per `.todo-c-path3-reality-2026-10-04.md` §3 硬约束）：
+
+- 不可修改 OctoSense / OctoSense-App-Hub / octoscript 依赖项目，修改要提issue ，pr 流程等要远程仓库合并通过后，本地才可以使用
+- 可以修改 `bundle/main.splash`（H4 / Path 1 保留）
+- 可给 `.card` 加 `source sys.finance_brief.*`（H4-O6，shell 端 catalog 不支持动态注册）
+- 可实现 Path 3 fullscreen launch（O1，需 OctoScript#56 桥接）
+
+**未来路径**：等 OctoScript#56（https://github.com/OctoSense-org/OctoScript/issues/56）桥接 splash widget tree → L0 ledger 后，Path 1 可通过 `main.octoscript`（或 `page.card`）入口合并到 Path 3 lite。
+
+**当前端到端**：Path 1 由 `scripts/run-finance-brief.sh` 启动，调用 card-host → `octosense_app_policy::script_source(bundle)` 读取 `bundle/main.splash` → Splash VM 直接求值 → Makepad widget tree。
+
 ---
 
 ## §2 L0 fixture sys.X 边界（按 examples/source_plan.rs + check_card.rs + lib.rs:3748-3911 实测）
