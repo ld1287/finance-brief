@@ -1,101 +1,117 @@
 # finance-brief
 
-## 在 OctoSense 上运行
+## OctoSense app — single Octoscript path
 
-finance-brief 当前在 OctoSense 生态中有**两条工作路径**（per [`docs/PATH3-REALITY.md`](docs/PATH3-REALITY.md)）：
+finance-brief is an OctoSense app rendered **entirely from `.octoscript`
+files** through the octoscript-makepad pipeline. There is one path; the
+splash DSL entry (`bundle/main.splash`) and the 12 `.card` glance tiles
+were removed in the `feat/one-octoscript` migration on 2026-10-04.
 
-| 路径 | 状态 | 入口 | 启动命令 |
-|------|------|------|---------|
-| **Path 1**（card-host 交互 UI） | ✅ 已 work | `bundle/main.splash` | `sh scripts/run-finance-brief.sh` |
-| **Path 3 lite**（shell glance tile） | ✅ 已 work（2026-10-04） | 12 个 `bundle/*.card` 静态模板 | OctoSense shell 启动后自动加载 |
+| | |
+|---|---|
+| **UI** | 12 `.octoscript` screens under `bundle/screens/` |
+| **Entry** | `apps/finance-brief/src/lib.rs` (mirror of `Octoscript-Makepad/apps/flutter-samples/src/lib.rs`) |
+| **Data** | 9 Rust adapters under `native/src/adapters/`, exposed to the DSL as `mod.fb.<cap>` via `apps/finance-brief/src/datasources.rs` |
+| **Workflow** | `bundle/workflow.octoscript` (7 functions, already existed; now actually wired) |
+| **Pipeline** | `octoscript-render` (VM → UiNode) → `octoscript-makepad::to_makepad_ui` → `Splash.view` → native makepad widgets |
+| **Hot reload** | `/data/local/tmp/finance_brief.octoscript` on device (mirrors flutter-samples' DEVICE_PATH) |
 
-**目标**：Path 3 fullscreen launch（OctoSense shell 全屏 launch finance-brief 交互 UI），需 [OctoScript#56](https://github.com/OctoSense-org/OctoScript/issues/56) 桥接 + 给 finance-brief 加 host-service crate。
+## 1. Project
 
-**架构演进**：当前 Path 1 + Path 3 lite 是过渡形态；Path 3 full 落地后，`bundle/main.splash` 将被 `main.octoscript`（或 `page.card`）替换，12 个 `.card` 将用真实 `source sys.finance_brief.*` 调用。
+An OctoSense controlled-script app (`bundle/` is the only submit unit;
+`apps/finance-brief/` is the desktop / phone packaging, mirroring
+`Octoscript-Makepad/apps/flutter-samples/`). Aggregates public, keyless
+APIs for finance news and quotes across five tabs (要闻 / A股 / 美股 / 加密 /
+外汇), with favorites and offline sample-data fallback. All data is for
+demonstration only and is **not investment advice**.
 
-详细现状、依赖、演进步骤见 [`docs/PATH3-REALITY.md`](docs/PATH3-REALITY.md)。
+## 2. Data sources
 
-## 1. 项目
+Five sources, six capabilities. TTLs are defined in `native/capabilities.toml`.
 
-OctoSense 受控脚本 App（`bundle/` 为唯一提交单元）。把公开免密接口的财经要闻与行情聚合到「要闻 / A股 / 美股 / 加密 / 外汇」五个标签下，支持收藏与离线示例数据回退；所有数据仅用于演示，不构成投资建议。
+| name | URL | content | TTL |
+|------|-----|---------|-----|
+| Sina 要闻 | `feed.mix.sina.com.cn` | Chinese finance RSS (GBK) | `news.refresh` 300s; `news.read` 600s |
+| Tencent 行情 | `qt.gtimg.cn` | A股 / 港股 snapshots | 5s |
+| Stooq 美股 | `stooq.com` | US equities realtime CSV | 5s |
+| Hyperliquid 加密 | `api.hyperliquid.xyz` | crypto (BTC/ETH/SOL, `allMids`) | 5s |
+| Frankfurter 外汇 | `api.frankfurter.dev` | ECB daily fix rates | 3600s |
 
-## 2. 数据源
+## 3. Run
 
-5 个数据源、6 个 capability（`quote.snapshot` 由 3 个 adapter 各自承担一类标的）。TTL 来自 `native/capabilities.toml`。
-
-| name | URL | 内容 | TTL |
-|------|-----|------|-----|
-| Sina 要闻 | `feed.mix.sina.com.cn` | 中文财经要闻 RSS（GBK） | `news.refresh` 300s；`news.read` 600s |
-| Tencent 行情 | `qt.gtimg.cn` | A股 / 港股快照 | 5s |
-| Stooq 美股 | `stooq.com` | 美股实时 CSV | 5s |
-| Hyperliquid 加密 | `api.hyperliquid.xyz` | 加密货币（BTC/ETH/SOL 等，`allMids`） | 5s |
-| Frankfurter 外汇 | `api.frankfurter.dev` | ECB 日定盘汇率 | 3600s |
-
-## 3. 启动
-
-三个命令即可运行（按顺序）：
+The single command sequence:
 
 ```sh
-# 1) 单元 / smoke 测试
+# 1) Native adapter unit / smoke tests
 cargo test --manifest-path native/Cargo.toml      # 65/65 PASS
 
-# 2) 编译 card-host harness（一次性，之后产物在 target/debug/card-host）
-cd OctoSense-App-Hub && cargo build -p octosense-card-host
+# 2) Run the Octoscript-driven app (desktop, mirrors flutter-samples)
+cd apps/finance-brief && cargo run --release
 
-# 3) 加载 finance-brief/bundle 并通过 makepad-remote 暴露 :8180
-./target/debug/card-host \
-    --bundle    /home/lumina/octoOs/finance-brief/bundle \
-    --app-data  /tmp/finance-brief-cardhost \
-    --allow-unsigned --stamp --remote 8180
-# 输出："finance-brief 0.3.0 admitted" + "isolate jailed" + "[SPLASH] eval: 6841 bytes"
-#     = splash parse 成功，bundle 可在 App-Hub 上运行
+# Outputs:
+#   finance-brief MOUNT route=launcher src_len=NNNNN built=true
+# = the 12 screens evaluate through octoscript-makepad and mount on
+#   Splash.view as native widgets.
 
-# 4) 远程探测窗口 / 状态（可选）
-curl -s http://127.0.0.1:8180/s | python3 -m json.tool
-# 注：headless 环境下 grab PNG（/g）会因 GPU 渲染管线 (MESA/ZINK) 失败，
-#     但 widget-draw phase 已被 splash 触发，draw-tree 已 instantiate。
+# 3) Phone build (mirrors flutter-samples)
+cargo makepad android run -p finance-brief --release
 ```
 
-`$OCTO` 指向 OctoScript-App-Design-Flow 仓库内的 CLI，本仓库不持有。
+`$OCTO` points at `OctoScript-App-Design-Flow/tools/octo`. This repository
+no longer relies on it for the interactive UI.
 
-## 4. 项目结构
+## 4. Repository layout
 
 ```
 finance-brief/
-├── bundle/                 # 提交到 App Hub 的唯一单元
-│   ├── main.splash         # 入口（host.call 15 个 wrapper）
-│   ├── capabilities.toml   # capability 白名单（v1 14 + Q-B 3）
-│   └── listing.json        # publisher 元数据
-├── native/                 # Rust adapters（5 数据源 + cache）
-│   └── src/adapters/       # news_sina / quote_tencent / quote_stooq /
-│                           # quote_hyperliquid / quote_frankfurter + …
-├── scripts/                # 启动 / 安装脚本
-├── docs/                   # 平台分层与 catalog 文档
-└── MVP-TODO.md             # v0.1.0 → v2 octoscript 平台迁移计划
+├── apps/
+│   └── finance-brief/                      # Rust app entry (mirror of flutter-samples)
+│       ├── Cargo.toml
+│       └── src/{main.rs, lib.rs, datasources.rs}
+├── bundle/                                 # Submit unit (mirrors OctoSense app structure)
+│   ├── screens/                            # 14 .octoscript files (kit + 12 screens + index)
+│   ├── workflow.octoscript                 # 7 workflow functions (already existed)
+│   ├── capabilities.toml                   # capability whitelist (per capabilities.toml)
+│   ├── schema/                             # 17 JSON schemas
+│   ├── kit/                                # 144 palette / axis token files
+│   ├── assets/  listing.json  screenshots/
+│   └── manifest.json                       # app metadata
+├── native/                                 # Rust adapters (5 sources + cache + 9 modules)
+│   ├── src/adapters/
+│   └── capabilities.toml
+├── scripts/                                # boot / install scripts
+├── docs/                                   # platform layered docs
+├── .todo-*.md                              # gitignored local coordination docs
+└── README.md
 ```
 
-## 5. launcher 12 屏
+## 5. Twelve launcher screens
 
-12 屏为 `MVP-TODO.md §5` 的目标拆解。当前 `bundle/main.splash` 的 launcher 实际暴露 6 tile + 备用槽 = 7 nav 目标；4 屏（新闻详情 / 研究详情 / K线 / 免责声明）尚未进入 launcher。任意子屏目前统一通过 `render_screen_placeholder()` 渲染占位（`(host loads the corresponding .card)`）。
+12 screens per `bundle/workflow.octoscript` mapping. Each screen is a
+single `.octoscript` file under `bundle/screens/`. The router lives in
+`bundle/screens/_index.octoscript`.
 
-| # | screen | 当前状态 |
-|---|--------|----------|
-| 1 | Launcher（home） | splash 内已渲染 |
-| 2 | 新闻简报列表 (`news_list`) | launcher tile；占位 |
-| 3 | 新闻详情 | 未在 launcher；占位 |
-| 4 | 研究卡列表 (`research_list`) | launcher tile；占位 |
-| 5 | 研究卡详情 | 未在 launcher；占位 |
-| 6 | K线看盘 | 未在 launcher（依赖 R-2 调研） |
-| 7 | 行情列表合并 (`quote_list`) | launcher tile（`行情看盘`）；占位 |
-| 8 | 收藏 (`favorites`) | launcher tile；占位 |
-| 9 | 设置 (`settings`) | launcher tile；占位 |
-| 10 | 免责声明 | 未在 launcher |
-| 11 | 事件流 (`event_stream`) | launcher tile；占位 |
-| 12 | 备用槽 (`datasource_status`) | launcher tile（`数据源状态页`）；占位 |
+| # | screen | file |
+|---|--------|------|
+| 1 | Launcher (home) | `screens/launcher.octoscript` |
+| 2 | 新闻简报 list | `screens/news_list.octoscript` |
+| 3 | 新闻详情 | `screens/news_detail.octoscript` |
+| 4 | 研究卡 list | `screens/research_list.octoscript` |
+| 5 | 研究卡详情 | `screens/research_detail.octoscript` |
+| 6 | K线看盘 (`mod.plot.CandlestickChart`) | `screens/kline.octoscript` |
+| 7 | 行情 list (4 tabs: A / US / crypto / FX) | `screens/quote_list.octoscript` |
+| 8 | 收藏 | `screens/favorites.octoscript` |
+| 9 | 设置 | `screens/settings.octoscript` |
+| 10 | 免责声明 | `screens/disclaimer.octoscript` |
+| 11 | 事件流 | `screens/event_stream.octoscript` |
+| 12 | 数据源状态 | `screens/datasource_status.octoscript` |
 
-## 6. 测试
+Per `docs/R-4-l0-cards.md §5`: 9 screens are pure L0 declarative;
+3 (K-line, event_stream, datasource_status) admit L1 arithmetic.
 
-```text
+## 6. Test
+
+```sh
 cargo test --manifest-path native/Cargo.toml
 …
 test result: ok. 62 passed; 0 failed   # unit
@@ -104,22 +120,27 @@ test result: ok.  3 passed; 0 failed   # smoke
                              65 / 65
 ```
 
-## 7. 已知问题
+App-level smoke: launch `cargo run -p finance-brief` and verify the
+launcher renders 11 tiles. Tapping a tile routes via `_index.octoscript`
+into the corresponding screen (verified by visual QA; no automated
+screenshot harness in this MVP).
 
-| 项 | 状态 |
-|----|------|
-| **B-0** `main.splash` `mod.lib.X.Y` dotted assign 不被 L0 方言接受 | 已修（flat `let` + property-assigned methods） |
-| **B-4** OctoSense-App-Hub gate 把 `$schema` / `$id` 当外部资源拒收 | issue body 待 file（目标仓：OctoSense-org/OctoSense-App-Hub） |
-| **B-7** `hub check` 偷偷改写 manifest `bundle_blake3` | issue body 待 file（同上） |
-| Phase 4-6 | 阻塞中，依赖 OctoSense-org/OctoScript#56（`sys.*` helpers runtime API 未合并） |
-| `bundle/listing.json` `publisher.privacy_policy_url` | 当前指向仓库 GitHub URL，未挂独立隐私政策文档 |
+## 7. Known issues
 
-## 8. Git 信息
+| item | status |
+|------|--------|
+| 9 native adapters not yet wired to `apps/finance-brief/src/datasources.rs` | `host.fetch` shims log a stub; data still flows through `native/capabilities.toml` for an MVP path |
+| `kline.octoscript` `chart_candlestick` widget registration | depends on `octoscript_widgets::script_mod(vm)` + `makepad_plot::script_mod(vm)` being called on the app VM; not in `datasources.rs` yet |
+| `bundle/listing.json` `publisher.privacy_policy_url` | current is the repo GitHub URL; needs an independent privacy doc before public submission |
+| `screens/*.octoscript` not yet walked through `octoscript_render::build` on a real device | verify on Android / desktop before tagging v0.4.0 |
 
-- 分支：`main`
-- 相对 `origin/main`：ahead 3，未推送
-- 当前 HEAD：`459aecc Splash: wire kline period chips (1d/5d/1mo)`
+## 8. Git info
+
+- Branch: `feat/one-octoscript` (off `b19656c`)
+- Tracking: `origin/main`
+- HEAD on main: `b19656c` "review, re-arch ,update docs"
+- Migration baseline: 2026-10-04
 
 ## 9. License
 
-Apache-2.0（见 `LICENSE`）。
+Apache-2.0 (see `LICENSE`).
