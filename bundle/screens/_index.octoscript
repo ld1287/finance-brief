@@ -1,0 +1,41 @@
+// _index.octoscript — finance-brief router.
+//
+// Concatenated LAST. The 12 screens above define `fn screen_<name>()`;
+// this file picks one by `st.route` and leaves it as the script's value.
+// Mirrors the role of
+// `Octoscript-Makepad/components/flutter/_index.octoscript`.
+//
+// Two things about the makepad-script VM shape this file:
+//
+//   1. A bare function call as the final top-level expression evaluates
+//      to nil, so the chosen node is bound to `node` and the file ends
+//      by naming it.
+//   2. There is no `substring` or `startsWith`. Parameterised routes are
+//      matched by rebuilding the full route string from the same data
+//      the screen uses and comparing for equality.
+
+// The 12 screens plus the parameterised detail routes are mapped here.
+// `route` keys come from `fb_tile(...)` / `fb_backbar(...)` tapto strings.
+let r = sget(stk_route, "launcher")
+let found = 0
+let node = screen_launcher()
+
+if r == "launcher" { node = screen_launcher(); found = 1 }
+if r == "news_list" { node = screen_news_list(); found = 1 }
+if r == "news_detail" { node = screen_news_detail(); found = 1 }
+if r == "research_list" { node = screen_research_list(); found = 1 }
+if r == "research_detail" { node = screen_research_detail(); found = 1 }
+if r == "quote_list" { node = screen_quote_list(); found = 1 }
+if r == "kline" { node = screen_kline(); found = 1 }
+if r == "favorites" { node = screen_favorites(); found = 1 }
+if r == "settings" { node = screen_settings(); found = 1 }
+if r == "event_stream" { node = screen_event_stream(); found = 1 }
+if r == "datasource_status" { node = screen_datasource_status(); found = 1 }
+if r == "disclaimer" { node = screen_disclaimer(); found = 1 }
+
+// Parameterised routes are not used in MVP; `screen_news_detail` and
+// `screen_research_detail` always render the first seed item. Add
+// `if r == "news_detail/<key>" { ... }` here when fetcher workflow
+// supplies a real key.
+if found == 0 { node = screen_launcher() }
+node

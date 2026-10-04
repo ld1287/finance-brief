@@ -1,0 +1,264 @@
+// _kit.octoscript — finance-brief design tokens + reusable widget helpers.
+//
+// Concatenated FIRST. Everything below defines tokens and helpers used by
+// the 12 screens and by `_index.octoscript` (the router). Mirrors the role
+// of `Octoscript-Makepad/components/flutter/_kit.octoscript`.
+//
+// Color palette is finance-brief's existing flat-let set, taken from
+// `bundle/main.splash` (the splash entry being replaced). Tokens prefixed
+// `fb_` to avoid clashing with `mod.prelude.widgets.*` and the rest of the
+// makepad prelude.
+
+// ── column palette ─────────────────────────────────────────────────────
+let fb_bg          = #xfafafaff
+let fb_bg_elevated = #xffffffff
+let fb_ink         = #x1c1c1eff
+let fb_secondary   = #x8e8e93ff
+let fb_divider     = #xe5e5eaff
+let fb_green_up    = #x34c759ff
+let fb_red_down    = #xff3b30ff
+let fb_accent      = #x007affff
+let fb_accent_h    = #x0a84ffff
+let fb_warn        = #xff9500ff
+let fb_neutral     = #xf2f2f7ff
+
+// ── tabbed themes (used by settings screen + dark mode toggle) ────────
+let fb_dark_bg     = #x1c1c1eff
+let fb_dark_ink    = #xf5f5f7ff
+let fb_dark_div    = #x38383aff
+
+// ── layout tokens ────────────────────────────────────────────────────
+let fb_pad_page    = 16
+let fb_gap_row     = 8
+let fb_gap_col     = 12
+let fb_radius_card = 12
+let fb_radius_chip = 18
+let fb_tile_h      = 96
+let fb_bar_h       = 44
+
+// ── state keys (the `st` namespace reads them) ──────────────────────
+// Keep aligned with `bundle/workflow.octoscript` and the screens.
+let stk_news_list    = "fb_news_list"
+let stk_news_detail  = "fb_news_detail"
+let stk_research      = "fb_research_list"
+let stk_research_det = "fb_research_detail"
+let stk_kline        = "fb_kline"
+let stk_quote_a      = "fb_quote_a"
+let stk_quote_us     = "fb_quote_us"
+let stk_quote_crypto = "fb_quote_crypto"
+let stk_quote_fx     = "fb_quote_fx"
+let stk_favorites    = "fb_favorites"
+let stk_settings     = "fb_settings"
+let stk_event_stream = "fb_event_stream"
+let stk_datasource   = "fb_datasource_status"
+let stk_route        = "fb_route"
+
+// ── helpers ──────────────────────────────────────────────────────────
+
+// A bare page surface with the standard background and padding.
+fn fb_page(bg, children) {
+    return {t: "scroll", fillw: 1, fillh: 1, bg: bg, pad: fb_pad_page,
+            spacing: fb_gap_col, c: children}
+}
+
+// A back-bar at the top of a screen; reads its label text from `copy`.
+fn fb_backbar(label_text) {
+    return {t: "row", fillw: 1, h: fb_bar_h, padx: 8, spacing: 8,
+            aligny: 0.5, bg: fb_bg, c: [
+        {t: "row", fitw: 1, h: fb_bar_h, padx: 4, spacing: 4, aligny: 0.5,
+         tapto: "launcher", c: [
+            txt("←", 17, 400, fb_accent),
+            txt(label_text, 17, 400, fb_accent),
+        ]},
+    ]}
+}
+
+// A simple headline row used at the top of section cards.
+fn fb_section(title) {
+    return {t: "row", fillw: 1, padx: 4, pady: 8, c: [
+        txt(title, 18, 500, fb_ink)
+    ]}
+}
+
+// A caption used inside cards (smaller, secondary color).
+fn fb_caption(text) {
+    return txt(text, 12, 400, fb_secondary)
+}
+
+// A body line of text (default 14, ink color).
+fn fb_body(text) {
+    return txt(text, 14, 400, fb_ink)
+}
+
+// A large title (28, ink, used at the top of a screen).
+fn fb_title(text) {
+    return txt(text, 28, 400, fb_ink)
+}
+
+// A tile for the launcher — square-ish, filled background, label centered.
+// `kind` becomes the route key (e.g. "news_list", "kline").
+fn fb_tile(label, kind, accent_color) {
+    return {t: "column", fillw: 1, h: fb_tile_h, radius: fb_radius_card,
+            bg: fb_bg_elevated, padx: 16, pady: 16, spacing: 4,
+            alignx: 0.0, aligny: 0.5, tapto: kind, c: [
+        txt(label, 16, 500, fb_ink),
+        fb_caption(kind),
+    ]}
+}
+
+// A colored chip-style row used for tab selection (K-line period, quote tab).
+// `active` is a boolean; selected chips swap colors.
+fn fb_chip(label, kind, active) {
+    let bg = fb_bg_elevated
+    let fg = fb_ink
+    if active == 1 {
+        bg = fb_accent
+        fg = #xffffffff
+    }
+    return {t: "column", fillw: 1, h: 32, padx: 12, pady: 4,
+            radius: fb_radius_chip, bg: bg, alignx: 0.5, aligny: 0.5,
+            tapto: kind, c: [
+        txt(label, 13, 500, fg),
+    ]}
+}
+
+// A single quote row: ticker, last, change% — change colored by sign.
+fn fb_quote_row(symbol, last, change_pct) {
+    let color = fb_secondary
+    let change_str = "" + change_pct
+    if change_pct > 0 {
+        color = fb_green_up
+        change_str = "+" + change_pct
+    }
+    if change_pct < 0 {
+        color = fb_red_down
+        change_str = "" + change_pct
+    }
+    return {t: "row", fillw: 1, h: 56, padx: 12, pady: 8, spacing: 8,
+            aligny: 0.5, bg: fb_bg_elevated, c: [
+        {t: "column", fitw: 1, c: [
+            txt(symbol, 14, 500, fb_ink),
+            fb_caption("行情"),
+        ]},
+        {t: "column", w: 96, alignx: 1.0, c: [
+            txt(last, 14, 500, fb_ink),
+            txt(change_str, 12, 400, color),
+        ]},
+    ]}
+}
+
+// A news card row: title + source line + meta.
+fn fb_news_row(title, source, ago) {
+    return {t: "column", fillw: 1, pad: 12, spacing: 4, radius: fb_radius_card,
+            bg: fb_bg_elevated, c: [
+        txt(title, 14, 500, fb_ink),
+        {t: "row", spacing: 6, c: [
+            txt(source, 11, 400, fb_secondary),
+            txt("·", 11, 400, fb_secondary),
+            txt(ago, 11, 400, fb_secondary),
+        ]},
+    ]}
+}
+
+// ── seeded sample data ──────────────────────────────────────────────
+// MVP data, baked into the kit so screens render before the host fetch
+// callbacks return. Replaced by `host.fetch` replies at runtime per
+// `docs/SPLASH-STYLE.md §4.4`.
+
+let fb_news_seed = [
+    ["央行下调存款准备金率 0.25 个百分点", "央行", "2 分钟前"],
+    ["A 股三大指数集体高开 沪指涨 0.8%", "财经早报", "10 分钟前"],
+    ["腾讯 Q3 财报：营收同比增长 9%", "公司公告", "1 小时前"],
+    ["比特币突破 9.5 万美元 创历史新高", "CoinDesk", "2 小时前"],
+    ["美联储会议纪要释放鸽派信号", "路透社", "3 小时前"],
+    ["人民币兑美元中间价报 7.18", "外汇局", "今天 09:15"],
+    ["苹果市值重回 3.5 万亿美元", "Bloomberg", "今天 08:30"],
+    ["英伟达 Q3 净利润同比增长 94%", "Reuters", "昨天 22:00"],
+]
+
+let fb_quote_a_seed = [
+    ["sh000001", "3287.45", "+0.82"],
+    ["sh600519", "1567.20", "-1.15"],
+    ["sz000858", "1421.00", "+0.34"],
+    ["sz300750", "218.50", "+2.41"],
+    ["sh601318", "47.82", "-0.18"],
+    ["sh600036", "38.95", "+0.45"],
+]
+
+let fb_quote_us_seed = [
+    ["AAPL", "229.87", "+1.42"],
+    ["MSFT", "421.65", "+0.87"],
+    ["TSLA", "352.40", "-0.65"],
+    ["NVDA", "145.20", "+3.21"],
+    ["GOOGL", "172.10", "+0.92"],
+]
+
+let fb_quote_crypto_seed = [
+    ["BTC", "95321.50", "+2.14"],
+    ["ETH", "3420.80", "+3.21"],
+    ["SOL", "231.45", "+4.87"],
+    ["DOGE", "0.42", "+5.12"],
+]
+
+let fb_quote_fx_seed = [
+    ["EUR/USD", "1.0456", "+0.12"],
+    ["USD/JPY", "154.21", "-0.08"],
+    ["GBP/USD", "1.2621", "+0.21"],
+    ["USD/CNY", "7.1812", "-0.05"],
+]
+
+let fb_research_seed = [
+    ["research_macro", "宏观策略", "三季度货币政策回顾", "央行研究局",
+     "2026-10-04"],
+    ["research_earnings", "盈利研究", "A 股三季报前瞻：科技板块超预期",
+     "中金研究", "2026-10-03"],
+    ["research_sector", "行业研究", "新能源车产业链景气度追踪",
+     "中信证券", "2026-10-02"],
+    ["research_global", "全球市场", "美股科技股估值再创新高",
+     "摩根士丹利", "2026-10-01"],
+]
+
+// Favorite sample keys.
+let fb_fav_seed = ["sh000001", "AAPL", "BTC"]
+
+// Settings default payload.
+let fb_settings_seed = {
+    theme: "light"
+    freq_ms: 5000
+    font_size: "md"
+    data_sources: "all"
+}
+
+let fb_event_stream_seed = [
+    ["14:23:01", "sh000001", "3278.50", "+0.45%"],
+    ["14:23:02", "AAPL",     "229.40", "+1.21%"],
+    ["14:23:03", "BTC",      "95112.30", "+1.92%"],
+    ["14:23:04", "EUR/USD",  "1.0458",  "+0.14%"],
+    ["14:23:05", "sh600519", "1567.10", "-1.16%"],
+]
+
+let fb_datasource_status_seed = [
+    ["news.refresh",      "OK",   "300s"],
+    ["quote.snapshot.a",  "OK",   "5s"],
+    ["quote.snapshot.us", "OK",   "5s"],
+    ["quote.snapshot.crypto", "OK", "5s"],
+    ["quote.snapshot.fx", "OK",   "3600s"],
+    ["stream.tick",       "OK",   "1s"],
+    ["stream.subscribe",  "OK",   "—"],
+]
+
+let fb_kline_seed = {
+    symbol: "sh000001"
+    period: "1d"
+    candles: [
+        // [time, open, high, low, close]
+        ["09:30", 3278.50, 3289.20, 3276.10, 3285.40],
+        ["10:00", 3285.40, 3292.80, 3283.10, 3287.45],
+        ["10:30", 3287.45, 3295.10, 3285.20, 3292.10],
+        ["11:00", 3292.10, 3294.50, 3280.80, 3284.20],
+        ["11:30", 3284.20, 3288.40, 3281.20, 3287.45],
+        ["13:00", 3287.45, 3291.20, 3285.30, 3288.10],
+        ["13:30", 3288.10, 3295.40, 3287.10, 3292.80],
+        ["14:00", 3292.80, 3298.20, 3291.40, 3295.10],
+    ]
+}
