@@ -85,11 +85,22 @@ flutter-samples 的镜像（Rust 入口 + baked-in Octoscript bundle）。
 ```
 finance-brief/
 ├── apps/
-│   └── finance-brief/                          # ✅ Rust app entry（仿 flutter-samples）
-│       ├── Cargo.toml                          # 依赖 octoscript-widgets/-render/-makepad
-│       ├── src/main.rs                         # 8 行桌面入口
-│       ├── src/lib.rs                          # BAKED + App struct + mount
-│       └── src/datasources.rs                  # host.fetch → 9 adapter 桥接
+│   └── desktop/                              # ✅ Rust app entry（仿 flutter-samples）
+│       ├── Cargo.toml                        # name = finance_brief_desktop (cdylib+rlib+bin)
+│       └── src/
+│           ├── main.rs                       # 11 行：fn main() → finance_brief_desktop::app_main()
+│           ├── lib.rs                        # ~50 行：pub mod + script_mod! 块 + tests
+│           ├── baked.rs                      # ~35 行：kit! + BAKED + DEVICE_PATH
+│           ├── app.rs                        # ~140 行：App struct + mount + AppMain
+│           ├── nav.rs                        # ~30 行：TAPS + register_nav
+│           └── datasources/
+│               ├── mod.rs                    # register_capability_handlers + 模块表
+│               ├── news.rs                   # news_refresh, news_read
+│               ├── quote.rs                  # quote_snapshot_a/us/crypto/fx, quote_candles
+│               ├── stream.rs                 # stream_subscribe/unsubscribe/frequency_set/tick
+│               ├── datasource_status.rs      # datasource_status
+│               ├── research.rs               # research_list, research_read
+│               └── local.rs                  # fav_list, fav_toggle, settings_load, settings_save
 ├── bundle/                                     # ✅ 提交单元
 │   ├── screens/                                # ✅ 14 .octoscript 文件
 │   │   ├── _kit.octoscript                     # 颜色 token + 复用 fn
@@ -150,16 +161,20 @@ bundle/screens/*.octoscript (14 files, baked-in BAKED in lib.rs)
 
 ## §4. 模块边界
 
-| 关注点 | Octoscript 屏 | workflow | capability | adapter | shell |
-|--------|--------------|----------|------------|---------|-------|
-| UI 渲染（widget 树） | ✅ | — | — | — | — |
-| 数据占位 `sget(key, default)` | ✅ | — | — | — | — |
-| 数据流步骤编排 | — | ✅ | — | — | — |
-| 能力声明（host.call 名） | — | — | ✅ | — | — |
-| 能力执行（实际 fetch/parse） | — | — | — | ✅ | — |
-| 数据契约（schema 校验） | — | — | ✅ | ✅ | — |
-| 卡片渲染挂载 | — | — | — | — | ✅（OctoSense shell） |
-| 应用切换 / 状态可检查 | — | — | — | — | ✅（OctoSense shell） |
+| 关注点 | Octoscript 屏 | workflow | capability | adapter | shell | 文件 |
+|--------|--------------|----------|------------|---------|-------|------|
+| UI 渲染（widget 树） | ✅ | — | — | — | — | — |
+| 数据占位 `sget(key, default)` | ✅ | — | — | — | — | — |
+| 数据流步骤编排 | — | ✅ | — | — | — | — |
+| 能力声明（host.call 名） | — | — | ✅ | — | — | — |
+| 能力执行（实际 fetch/parse） | — | — | — | ✅ | — | — |
+| 数据契约（schema 校验） | — | — | ✅ | ✅ | — | — |
+| 卡片渲染挂载 | — | — | — | — | ✅（OctoSense shell） | — |
+| 应用切换 / 状态可检查 | — | — | — | — | ✅（OctoSense shell） | — |
+| 渲染管线 baked 拼装 | — | — | — | — | — | `apps/desktop/src/baked.rs` |
+| App struct + AppMain hookups | — | — | — | — | — | `apps/desktop/src/app.rs` |
+| 路由（NAV polling） | — | — | — | — | — | `apps/desktop/src/nav.rs` |
+| `host.fetch` 桥到 native adapter | — | — | — | — | — | `apps/desktop/src/datasources/` |
 
 **原则**：
 - Octoscript 屏是 declarative 数据，不包含计算逻辑（除了 L1 arithmetic，per `R-4-l0-cards.md §5`）
@@ -287,6 +302,7 @@ https://github.com/OctoSense-org/OctoScript/issues/56
 
 | 日期 | 改动 | commit |
 |------|------|--------|
+| 2026-10-04 | apps/desktop 重设计：拆 3 文件为 9 文件，crate 改名 finance-brief → finance_brief_desktop | (commit pending) |
 | 2026-10-04 | v3: 单一 Octoscript 方案迁移；删 main.splash + 12 .card + 6 splash docs；新建 apps/desktop/ + bundle/screens/ | `feat/one-octoscript` 分支 |
 | 2026-10-03 | v2: splash DSL flat-let 单文件；workflow.octoscript 写但未挂 | `b19656c` |
 | 2026-10-02 | v1: 1689 行 main.splash；用户决策切到 octoscript 平台 | — |
