@@ -39,28 +39,92 @@ Five sources, six capabilities. TTLs are defined in `native/capabilities.toml`.
 
 ## 3. Run
 
-The single command sequence:
+Four modes. All CLI lives in `scripts/*.py` (ported from `.sh` on 2026-10-05; stdlib only; cross-platform on Windows / macOS / Linux).
+
+### 3.1 Standalone (desktop window)
 
 ```sh
 # 1) Native adapter unit / smoke tests
 cargo test --manifest-path native/Cargo.toml      # 65/65 PASS
 
-# 2) Run the Octoscript-driven app (desktop, mirrors flutter-samples)
+# 2) Desktop window (mirror of flutter-samples)
 cd apps/desktop && cargo run --release
-
-# Outputs:
-#   finance-brief MOUNT route=launcher src_len=NNNNN built=true
+#   Output: finance-brief MOUNT route=launcher src_len=NNNNN built=true
 # = the 12 screens evaluate through octoscript-makepad and mount on
 #   Splash.view as native widgets.
+```
 
-# 3) Phone build (mirrors flutter-samples)
+### 3.2 Register with the OctoSense shell launcher
+
+```sh
+# User-level registration (does NOT touch the dep repo; writes
+# ~/.octosense/apps.json — see OctoSense/AGENTS.md §"Developer programs and
+# the catalog")
+python scripts/install-as-makepad-app.py
+
+# The shell reads ~/.octosense/apps.json before config/apps.json
+cd ../OctoSense && cargo run --release -p octosense
+# → the "财经简报" tile in the shell launcher spawns finance-brief.exe
+```
+
+`install-as-makepad-app.py` does: ① `cargo build --release` ② verify the local `../makepad` HEAD matches the rev pinned in `apps/desktop/Cargo.toml` (OctoSense/AGENTS.md §2 "One revision per external dependency") ③ write the `~/.octosense/apps.json` entry (label=财经简报, executable=absolute path). Supports `--dry-run` / `--uninstall` / `--help`.
+
+> **v6 fix (2026-10-05)**: a previous session accidentally ran `install-as-system-app.py` (the legacy Page-format script), which registered `finance-brief` in `OctoSense/desktop/system-apps.json` and copied the bundle into `OctoSense/apps/finance-brief/bundle/`. Because the source bundle has no `launcher.card`, no `page.card` was ever created; the shell then loaded `system-apps.json` as a system-app catalog and reported `page.card 系统找不到指定文件 (os error:2)`.
+>
+> **Correct path**: `finance-brief` is a developer program, not a system app — it must go through the `executable=` field of `~/.octosense/apps.json`. `install-as-makepad-app.py` already implements that path.
+>
+> **If the shell still reports `page.card`**:
+> 1. `python scripts/install-as-system-app.py --uninstall` (added in v6) — clears the OctoSense-side pollution
+> 2. Delete `~/.octosense/apps/.system/os.finance-brief/` if present — clears the shell-side cache
+> 3. Re-run `python scripts/install-as-makepad-app.py` — rewrites the user catalog
+
+> **Why not write `OctoSense/desktop/config/apps.json` directly?**  
+> `config/apps.json` is an `OctoSense`-owned file; finance-brief is not its owner. Modifying a dep-repo file pulls in a sync burden (finance-brief bumps → OctoSense must follow → PR flow). Instead we write the registration into `~/.octosense/apps.json` — a user-level catalog the shell looks at before `config/apps.json`. `register-with-shell.py` is that entry point; `install-as-makepad-app.py` is its build+register one-step sibling.
+
+### 3.3 Headless verification (remote bridge)
+
+No window needed; verify widget tree / pixels remotely:
+
+```sh
+# Start finance-brief in the background with the remote bridge attached
+nohup ./apps/desktop/target/release/finance-brief.exe --remote=0 > /tmp/fb.log 2>&1 &
+disown
+sleep 5
+
+# Extract the port (--remote=0 means makepad picks an ephemeral port)
+PORT=$(grep -oE 'listening on 127.0.0.1:[0-9]+' /tmp/fb.log | grep -oE '[0-9]+$' | head -1)
+
+curl http://127.0.0.1:$PORT/status     # window state + size
+curl http://127.0.0.1:$PORT/snap       # widget tree
+curl http://127.0.0.1:$PORT/g          # grab PNG (capture_kind=backend_png)
+```
+
+Or use `python scripts/drive-test.py <port>` to drive the 5 launcher tab clicks automatically, or `python scripts/verify.py <port>` to verify the 5 quote tabs + refresh button.
+
+### 3.4 Phone
+
+```sh
 cargo makepad android run -p finance-brief --release
 ```
 
-`$OCTO` points at `OctoScript-App-Design-Flow/tools/octo`. This repository
-no longer relies on it for the interactive UI.
+`$OCTO` points at `OctoScript-App-Design-Flow/tools/octo`. This repository no longer relies on it for the interactive UI.
 
-## 4. Repository layout
+## 4. Scripts (`scripts/*.py`)
+
+All scripts were ported from `.sh` on 2026-10-05. stdlib only (`argparse` / `subprocess` / `urllib.request` / `pathlib` / `shutil`); runs on Windows without Git Bash / WSL — `python foo.py` is enough. Every script supports `--help`; bad args → exit 2; bridge unreachable → exit 7.
+
+| script | purpose |
+|--------|---------|
+| `install-as-makepad-app.py` | **Current recommendation.** Builds + registers finance-brief with the OctoSense shell user-level catalog (`~/.octosense/apps.json`). Includes makepad-rev alignment check + UTF-8 + Python-bool fixes (Windows + Chinese-label safe). |
+| `register-with-shell.py` | Register finance-brief with the OctoSense shell user-level catalog (`~/.octosense/apps.json`), without rebuilding. Documented in [scripts/README.en.md](scripts/README.en.md). |
+| `install-as-system-app.py` | **Legacy.** Copies the bundle into `OctoSense/apps/finance-brief/bundle/` (writes to the dep repo) — designed for the old Page-format bundle (`*.card` files). Now defensive: missing source files print a warning and are skipped instead of crashing. Under the current Path-1 bundle this installs an empty bundle and prints a WARNING pointing at `install-as-makepad-app.py`. (Supports `--uninstall`, added in v6.) |
+| `run-octosense.py` | Calls `install-as-makepad-app.py` then `cargo run --release -p octosense`. Under the current Path-1 bundle, prefer `cargo run -p octosense` directly after running `install-as-makepad-app.py` once. |
+| `drive-test.py <port>` | Drives the 5 launcher tabs via the remote bridge and prints the screen label sequence. |
+| `verify.py <port>` | Drives the 5 quote tabs + refresh button via the remote bridge (hardcoded coordinates for the `quote_list` layout). |
+
+Old `.sh` files were removed.
+
+## 5. Repository layout
 
 ```
 finance-brief/
@@ -85,7 +149,7 @@ finance-brief/
 └── README.md
 ```
 
-## 5. Twelve launcher screens
+## 6. Twelve launcher screens
 
 12 screens per `bundle/workflow.octoscript` mapping. Each screen is a
 single `.octoscript` file under `bundle/screens/`. The router lives in
@@ -109,7 +173,7 @@ single `.octoscript` file under `bundle/screens/`. The router lives in
 Per `docs/R-4-l0-cards.md §5`: 9 screens are pure L0 declarative;
 3 (K-line, event_stream, datasource_status) admit L1 arithmetic.
 
-## 6. Test
+## 7. Test
 
 ```sh
 cargo test --manifest-path native/Cargo.toml
@@ -125,7 +189,7 @@ launcher renders 11 tiles. Tapping a tile routes via `_index.octoscript`
 into the corresponding screen (verified by visual QA; no automated
 screenshot harness in this MVP).
 
-## 7. Known issues
+## 8. Known issues
 
 | item | status |
 |------|--------|
@@ -133,14 +197,16 @@ screenshot harness in this MVP).
 | `kline.octoscript` `chart_candlestick` widget registration | depends on `octoscript_widgets::script_mod(vm)` + `makepad_plot::script_mod(vm)` being called on the app VM; not in `datasources.rs` yet |
 | `bundle/listing.json` `publisher.privacy_policy_url` | current is the repo GitHub URL; needs an independent privacy doc before public submission |
 | `screens/*.octoscript` not yet walked through `octoscript_render::build` on a real device | verify on Android / desktop before tagging v0.4.0 |
+| Splash subtree is 0×0 in headless `/snap?all=1` | **Fixed (v8, 2026-10-05)**. Root cause: `apps/desktop/src/app.rs:60`'s `View{height:Fit, {ui}}` wrap + `view.walk = host.walk` walk freeze + missing `WindowGeomChange` remount; flutter-samples uses the same Fit wrap but its kit content uses plain View+px heights, unlike finance-brief's `fb_page` ScrollYView+fillh:1. See `.todo-finance-brief-splash-zero-rect-2026-10-05.md` §3 for the 5 changes. Verified: `/snap?all=1` Splash r=[0,29,440,997], 11 tiles r=[24,167,192,96]/[224,167,192,96]/..., `/g` PNG captures the full launcher UI |
+| `install-as-system-app.py` is a legacy Page-format script; ineffective on the Path-1 bundle | Do not run it. If it was already run and polluted the OctoSense state, clean up with `python scripts/install-as-system-app.py --uninstall` (added in v6). |
 
-## 8. Git info
+## 9. Git info
 
 - Branch: `feat/one-octoscript` (off `b19656c`)
 - Tracking: `origin/main`
 - HEAD on main: `b19656c` "review, re-arch ,update docs"
 - Migration baseline: 2026-10-04
 
-## 9. License
+## 10. License
 
 Apache-2.0 (see `LICENSE`).
