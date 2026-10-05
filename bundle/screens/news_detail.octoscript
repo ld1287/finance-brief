@@ -1,0 +1,27 @@
+// news_detail.octoscript — 单条新闻详情屏。
+//
+// MVP: title + body stub + back. Reads `st[stk_news_detail]` keyed by the
+// selected item index, falls back to the first seed entry.
+
+fn screen_news_detail() {
+    let items = sget(stk_news_list, fb_news_seed)
+    let idx = sget("fb_news_index", 0)
+    let title = items[idx][0]
+    let source = items[idx][1]
+    let ago = items[idx][2]
+    return fb_page(fb_bg, [
+        fb_backbar("新闻详情"),
+        fb_title(title),
+        {t: "row", spacing: 6, c: [
+            txt(source, 12, 400, fb_secondary),
+            txt("·", 12, 400, fb_secondary),
+            txt(ago, 12, 400, fb_secondary),
+        ]},
+        {t: "column", fillw: 1, pad: 16, spacing: 8, bg: fb_bg_elevated,
+         radius: fb_radius_card, c: [
+            fb_body("本条新闻的正文尚未实现 — finance-brief MVP 把单条详情"),
+            fb_body("作为只读卡片渲染，完整正文由 fetcher workflow 异步填入。"),
+            fb_body("Tap 标题旁的返回按钮回到列表。"),
+        ]},
+    ])
+}

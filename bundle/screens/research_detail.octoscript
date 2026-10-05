@@ -1,0 +1,26 @@
+// research_detail.octoscript — 研究卡详情屏。
+
+fn screen_research_detail() {
+    let items = sget(stk_research, fb_research_seed)
+    let idx = sget("fb_research_index", 0)
+    let title = items[idx][2]
+    let tag = items[idx][1]
+    let author = items[idx][3]
+    let date = items[idx][4]
+    return fb_page(fb_bg, [
+        fb_backbar("研究详情"),
+        fb_title(title),
+        {t: "row", spacing: 6, c: [
+            txt(tag, 12, 400, fb_accent),
+            txt("·", 12, 400, fb_secondary),
+            txt(author, 12, 400, fb_secondary),
+            txt("·", 12, 400, fb_secondary),
+            txt(date, 12, 400, fb_secondary),
+        ]},
+        {t: "column", fillw: 1, pad: 16, spacing: 8, bg: fb_bg_elevated,
+         radius: fb_radius_card, c: [
+            fb_body("研究正文由 fetcher 在 `bundle/research_cards/` 目录读取，"),
+            fb_body("MVP 阶段渲染为占位卡片。"),
+        ]},
+    ])
+}

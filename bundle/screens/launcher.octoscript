@@ -1,0 +1,48 @@
+// launcher.octoscript — finance-brief launcher / home screen.
+//
+// 6 tile launcher (per `bundle/main.splash:163-...`). Mirrors the role of
+// `Octoscript-Makepad/components/flutter/material_3_demo.octoscript`'s
+// home / index pattern: a grid of `tapto`-bound tiles that route into
+// the screen selected by `_index.octoscript`.
+
+fn screen_launcher() {
+    return fb_page(fb_bg, [
+        {t: "column", fillw: 1, pad: 8, spacing: 8, c: [
+            fb_title("财经简报"),
+            fb_caption("OctoSense · 单 Octoscript 方案"),
+            fb_section("主功能"),
+            {t: "row", fillw: 1, spacing: 8, c: [
+                fb_tile("新闻简报", "news_list", fb_accent),
+                fb_tile("行情看盘", "quote_list", fb_green_up),
+            ]},
+            {t: "row", fillw: 1, spacing: 8, c: [
+                fb_tile("研究卡", "research_list", fb_warn),
+                fb_tile("K 线", "kline", fb_accent),
+            ]},
+            fb_section("数据"),
+            {t: "row", fillw: 1, spacing: 8, c: [
+                fb_tile("收藏", "favorites", fb_red_down),
+                fb_tile("设置", "settings", fb_secondary),
+            ]},
+            fb_section("高级"),
+            {t: "row", fillw: 1, spacing: 8, c: [
+                fb_tile("事件流", "event_stream", fb_accent),
+                fb_tile("数据源状态", "datasource_status", fb_secondary),
+            ]},
+            fb_section("关于"),
+            {t: "row", fillw: 1, spacing: 8, c: [
+                fb_tile("免责声明", "disclaimer", fb_secondary),
+                fb_tile("新闻详情", "news_detail", fb_accent),
+            ]},
+            {t: "row", fillw: 1, spacing: 8, c: [
+                fb_tile("研究详情", "research_detail", fb_warn),
+                {t: "column", fillw: 1, h: fb_tile_h, radius: fb_radius_card,
+                 bg: fb_neutral, padx: 16, pady: 16, alignx: 0.5, aligny: 0.5,
+                 c: [
+                    txt("Refresh", 14, 500, fb_ink),
+                    fb_caption("reload all"),
+                ]},
+            ]},
+        ]},
+    ])
+}

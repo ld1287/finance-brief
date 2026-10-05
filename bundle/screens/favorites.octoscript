@@ -1,0 +1,27 @@
+// favorites.octoscript — 收藏屏。
+//
+// Shows the user's favorited tickers / cards. The favorite set is read from
+// `st[stk_favorites]` (set by `fav.toggle`); falls back to `fb_fav_seed`.
+
+fn screen_favorites() {
+    let items = sget(stk_favorites, fb_fav_seed)
+    let rows = []
+    let n = items.len()
+    for i in n {
+        rows.push({t: "row", fillw: 1, h: 56, padx: 12, pady: 8, spacing: 8,
+                   aligny: 0.5, bg: fb_bg_elevated, c: [
+            {t: "column", fitw: 1, c: [
+                txt(items[i], 14, 500, fb_ink),
+                fb_caption("收藏"),
+            ]},
+            {t: "column", w: 32, alignx: 0.5, aligny: 0.5, c: [
+                txt("★", 18, 500, fb_warn),
+            ]},
+        ]})
+    }
+    return fb_page(fb_bg, [
+        fb_backbar("收藏"),
+        fb_section("我的收藏"),
+        {t: "column", fillw: 1, spacing: 8, c: rows},
+    ])
+}

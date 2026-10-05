@@ -1,0 +1,20 @@
+// news_list.octoscript — 财经要闻列表屏。
+//
+// Reads `st[stk_news_list]` if set (host fetch reply), else falls back
+// to `fb_news_seed`. Each row navigates to `news_detail` on tap.
+
+fn screen_news_list() {
+    let items = sget(stk_news_list, fb_news_seed)
+    let rows = []
+    let i = 0
+    let n = items.len()
+    for i in n {
+        let item = items[i]
+        rows.push(fb_news_row(item[0], item[1], item[2]))
+    }
+    return fb_page(fb_bg, [
+        fb_backbar("新闻简报"),
+        fb_section("今日要闻"),
+        {t: "column", fillw: 1, spacing: 8, c: rows},
+    ])
+}

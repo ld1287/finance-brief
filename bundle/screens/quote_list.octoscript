@@ -1,0 +1,45 @@
+// quote_list.octoscript — 行情看盘（A 股 / 美股 / 加密 / 外汇）合并屏。
+//
+// The 4 tabs share the page; `sget("fb_quote_tab", "a")` selects which
+// seed set to render. The tab chips at the top call back with
+// `tapto: "set:fb_quote_tab=a"` etc.
+
+fn screen_quote_list() {
+    let tab = sget("fb_quote_tab", "a")
+    let items = fb_quote_a_seed
+    let tab_a = 1
+    let tab_us = 0
+    let tab_crypto = 0
+    let tab_fx = 0
+    if tab == "us" {
+        items = fb_quote_us_seed
+        tab_a = 0
+        tab_us = 1
+    }
+    if tab == "crypto" {
+        items = fb_quote_crypto_seed
+        tab_a = 0
+        tab_crypto = 1
+    }
+    if tab == "fx" {
+        items = fb_quote_fx_seed
+        tab_a = 0
+        tab_fx = 1
+    }
+    let rows = []
+    let n = items.len()
+    for i in n {
+        let q = items[i]
+        rows.push(fb_quote_row(q[0], q[1], q[2]))
+    }
+    return fb_page(fb_bg, [
+        fb_backbar("行情看盘"),
+        {t: "row", fillw: 1, spacing: 8, c: [
+            fb_chip("A 股",  "set:fb_quote_tab=a",     tab_a),
+            fb_chip("美股",  "set:fb_quote_tab=us",    tab_us),
+            fb_chip("加密",  "set:fb_quote_tab=crypto", tab_crypto),
+            fb_chip("外汇",  "set:fb_quote_tab=fx",    tab_fx),
+        ]},
+        {t: "column", fillw: 1, spacing: 8, c: rows},
+    ])
+}
