@@ -8,5 +8,5 @@
 //!
 //! Mirror of `Octoscript-Makepad/apps/flutter-samples/src/main.rs`.
 fn main() {
-    finance_brief::app_main()
+    finance_brief_desktop::app_main()
 }
