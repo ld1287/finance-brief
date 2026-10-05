@@ -1,5 +1,4 @@
-# GitHub Issue: Splash/View host-slot swap doesn't refresh widget tree graph
-
+[issue 76](https://github.com/OctoSense-org/OctoScript-Makepad/issues/76)
 > **Title suggestion**: `widget_tree: refresh_from_borrowed does not refresh host slot after mem::replace on Splash or View`
 >
 > **Labels**: `bug`, `area::widget-tree`, `severity::blocker`
