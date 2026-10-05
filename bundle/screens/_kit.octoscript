@@ -55,6 +55,15 @@ let stk_route        = "fb_route"
 
 // ── helpers ──────────────────────────────────────────────────────────
 
+// A single-line text widget. Carries no height (fith:1) — same reasoning as
+// flutter-samples/components/flutter/_kit.octoscript:127: makepad clips a Label
+// to its box, and a hand-picked height even slightly under the font's line box
+// shears the descenders off. Vertical spacing belongs to the parent's spacing.
+fn txt(s, size, weight, color) {
+    return {t: "text", text: s, size: size, weight: weight, color: color,
+            fith: 1}
+}
+
 // A bare page surface with the standard background and padding.
 fn fb_page(bg, children) {
     return {t: "scroll", fillw: 1, fillh: 1, bg: bg, pad: fb_pad_page,

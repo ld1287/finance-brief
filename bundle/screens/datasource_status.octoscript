@@ -27,5 +27,5 @@ fn screen_datasource_status() {
         fb_backbar("数据源状态"),
         fb_section("健康度"),
         {t: "column", fillw: 1, spacing: 8, c: rows},
-    ]
+    ])
 }
