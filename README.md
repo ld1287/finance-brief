@@ -7,6 +7,8 @@ octoscript-makepad 流水线渲染呈现。只有一条渲染路径；splash DSL
 （`bundle/main.splash`）以及 12 个 `card` 概览卡片已于 2026-10-04 的
 `feat/one-octoscript` 迁移中移除。
 
+目标MVP产品 [MVP-TODO](../MVP-TODO.md)
+
 | | |
 |---|---|
 | **UI** | `bundle/screens/` 中 12 个 `.octoscript` 界面 |
