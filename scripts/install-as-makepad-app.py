@@ -131,9 +131,13 @@ def main():
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
     if dry:
         print(f"[dry-run] would write to {catalog_path}:")
+        # Mirror the live-write line below: relative-to-catalog-parent path
+        # with forward slashes, so the dry-run and live run show the same
+        # catalog content.
+        exe_rel = os.path.relpath(str(exe), str(catalog_path.parent)).replace("\\", "/")
         print(
             f'  [{{"id":"{ENTRY_ID}","label":"{LABEL}",'
-            f'"executable":"{exe}","policy":"{POLICY}"}}]'
+            f'"executable":"{exe_rel}","policy":"{POLICY}"}}]'
         )
     else:
         if catalog_path.exists():
@@ -149,7 +153,18 @@ def main():
             arr.append({
                 "id": ENTRY_ID,
                 "label": LABEL,
-                "executable": os.path.abspath(str(exe)).replace("\\", "/"),
+                # Path is RELATIVE to the catalog file's parent directory
+                # (`finance-brief/catalog/`). OctoSense's `parse_catalog`
+                # joins `executable` onto the catalog parent and uses that
+                # as `app.bin`; `spawn_client` then sets `cmd.current_dir`
+                # to that same parent so `Command::new(bin)` resolves the
+                # relative path correctly. See crates/shell/src/octosense/catalog.rs:64
+                # (`base.join(value)`) and crates/shell/src/clients.rs:1404
+                # (`cmd.current_dir(&app.dir)`). Using an absolute path here
+                # would also work (Path::join preserves absolute children),
+                # but the relative form is portable and matches the
+                # convention in `OctoSense/desktop/config/apps.json`.
+                "executable": os.path.relpath(str(exe), str(catalog_path.parent)).replace("\\", "/"),
                 "policy": POLICY,
             })
         with open(catalog_path, "w", encoding="utf-8") as f:

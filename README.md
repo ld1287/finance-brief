@@ -92,11 +92,13 @@ python scripts/run-on-octosense.py
   {
     "id": "finance_brief",
     "label": "财经简报",
-    "executable": "C:/Code/OctoSenseorg/finance-brief/apps/desktop/target/release/finance-brief.exe",
+    "executable": "../apps/desktop/target/release/finance-brief.exe",
     "policy": "new"
   }
 ]
 ```
+
+> 为什么要相对路径以及与 `OctoSense/desktop/config/apps.json` 内的其他条目为何一致，见下面“catalog 路径是相对路径，不是绝对路径”一节。
 
 #### `run-on-octosense.py` 实际做了什么
 
@@ -137,6 +139,18 @@ python scripts/run-on-octosense.py
 Rust `Command::new("C:/.../finance-brief")` 在 Windows 上**不会**自动补 `.exe`（与 PowerShell `Start-Process` 不同）。catalog 里写 `"executable": ".../finance-brief"` 时 `spawn_client` 报 ENOENT / silent spawn fail，shell log 看起来 `ok`、finance-brief 不挂。**所以 `executable` 字段必须含 `.exe` 后缀**。
 
 `install-as-makepad-app.py:68` 已对此处理：检测后 `exe = exe_base.with_suffix(".exe") if is_windows else exe_base`，保证写入字段总是带后缀。**直接编辑 `catalog/apps.json` 时**仍要手动带 `.exe`，否则下次 `cargo build --refresh` 之类的脚本覆盖写错。
+
+#### catalog `executable` 是相对路径，不是绝对路径
+
+`executable` 字段存的是**相对于 catalog 文件的父目录**（`finance-brief/catalog/`）的相对路径，**不是**绝对路径。OctoSense 的 catalog 路径处理流程是：
+
+- `crates/shell/src/octosense/catalog.rs:64` `let path = |value: String| base.join(value)...` — 把 `executable` 拼到 catalog 文件的父目录后存进 `app.bin`。
+- `crates/shell/src/clients.rs:1404` `cmd.current_dir(&app.dir)` — `spawn_client` 随后把子进程的 cwd 设到 `app.dir`（同样是 catalog 的父目录）。
+- `Command::new(bin)` 据此把相对路径解析到 `<workspace>/finance-brief/apps/desktop/target/release/finance-brief.exe`。
+
+绝对路径**也能**工作（`Path::join` 对绝对子路径直接替换 base），但与 `OctoSense/desktop/config/apps.json` 内自家条目约定不一致；并且依赖机器特定的路径，不便项目复制。官方测试 `manifest_and_executable_paths_are_relative_to_the_catalog` 明确验证了这个语义（catalog.rs:187）。
+
+`install-as-makepad-app.py:152` 已用 `os.path.relpath(str(exe), str(catalog_path.parent)).replace("\\", "/")` 写入相对路径形式。**直接编辑 `catalog/apps.json` 时**要保证 `executable` 是相对路径且用 `/`。
 
 #### Rebuild / 清理
 
@@ -257,8 +271,8 @@ finance-brief/
 （K线、event_stream、datasource_status）允许 L1 算术运算。
 
 - 架构图
-- ![](docs/verify-launcher-fullsize2.png)
-- ![](docs/after.png)
+- ![desktop](docs/verify-launcher-fullsize2.png)
+- ![app](docs/after.png)
 ## 7. 测试
 
 ```sh
