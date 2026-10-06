@@ -54,20 +54,103 @@ cd apps/desktop && cargo run --release
 
 ### 3.2 注册到 OctoSense shell 启动器
 
+按 finance-brief 政策，所有文件都在 `C:\Code\OctoSenseorg\` 内（不写到 `~/.octosense/`）。catalog 放在项目内，shell 通过 `--apps` 显式读它。
+
+#### 启动流程（已验证 2026-10-06）
+
 ```sh
-# 用户级注册（不写 dep 仓库；写到 ~/.octosense/apps.json）
+# 前置：两个二进制都已 build 好
+#   OctoSense/target/release/octosense.exe
+#   finance-brief/apps/desktop/target/release/finance-brief.exe
+#   （否则 install-as-makepad-app.py 会替你 cargo build --release）
+
+# 1. 注册到项目内 catalog（写 finance-brief/catalog/apps.json，不写 ~/.octosense/）
 python scripts/install-as-makepad-app.py
 
-# shell 启动时优先读 ~/.octosense/apps.json
-cd ../OctoSense && cargo run --release -p octosense
-# → 启动器 tile "财经简报" 点击后拉起 finance-brief.exe 独立窗口
+# 2. 启动 OctoSense shell（自动 --apps <catalog> + OCTOSENSE_HOME 重定向）
+python scripts/run-on-octosense.py
+# → octosense.exe PID 28488，绑 :57450
+# → 约 1.5 min 后 finance-brief.exe 被 shell 按 policy="new" 自动 spawn（PID 20140）
+# → shell 顶栏显示 "OctoSense · Light · finance_brief"，Studio dev panel 同步亮起
+# → finance-brief 窗口内 launcher 完整渲染：12 个 tile（新闻简报 / 行情看盘 / 研究卡 / K 线 / 收藏 / 设置 / 事件流 / 数据源状态 / 免责声明 / 新闻详情 / 研究详情 / Refresh）
 ```
 
-`install-as-makepad-app.py` 做：① `cargo build --release` ② 检查本地 `../makepad` HEAD 与 `apps/desktop/Cargo.toml` pin 的 rev 对齐（OctoSense/AGENTS.md §2 "One revision per external dependency"）③ 写 `~/.octosense/apps.json` 条目（label=财经简报，executable=绝对路径）。支持 `--dry-run` / `--uninstall` / `--help`。
+整个流程**只读不破坏**：install 阶段写 `finance-brief/catalog/apps.json`、build 阶段写 `apps/desktop/target/`；run 阶段不 rebuild，不动 dep 仓库，不写 `~/.octosense/`（`OCTOSENSE_HOME` 重定向到 `finance-brief/.octosense/`）。
+
+#### `install-as-makepad-app.py` 实际做了什么
+
+1. `cargo build --release --manifest-path apps/desktop/Cargo.toml`（已 build 则 ~30s 重新链接，否则重链 + 编译 + 安装 deps 第一次用时长：5–10min）
+2. 验证 `apps/desktop/target/release/finance-brief.exe` 存在（POSIX 还要 `os.access(...X_OK)`）
+3. **rev 对齐**：扫 `apps/desktop/Cargo.toml` 的 `makepad-widgets git rev=` 与 `../makepad` HEAD，不一致则 `SystemExit(3)` 并打印对齐提示（OctoSense/AGENTS.md §2 "One revision per external dependency"）
+4. 写 `finance-brief/catalog/apps.json`（已存在则读 → 移除同 id 条目 → append → 写回，保证幂等）。Windows 下 `executable` 字段**必须**带 `.exe` 后缀（见下面"坑点"）
+5. 打印 next-step 提示
+
+支持 `--dry-run`（echo only，不 build 不写文件）、`--uninstall`（移除条目）、`--help`。当前文件：
+
+```json
+[
+  {
+    "id": "finance_brief",
+    "label": "财经简报",
+    "executable": "C:/Code/OctoSenseorg/finance-brief/apps/desktop/target/release/finance-brief.exe",
+    "policy": "new"
+  }
+]
+```
+
+#### `run-on-octosense.py` 实际做了什么
+
+1. 检查 catalog 与 `OctoSense/target/release/octosense.exe` 存在（缺失 → `SystemExit(2/3)`）
+2. `mkdir -p finance-brief/.octosense/`
+3. **环境变量处理**：
+   - 设 `OCTOSENSE_HOME=<finance-brief/.octosense>`（runtime data 全在项目内）
+   - `unset MAKEPAD_REMOTE` / `MAKEPAD_HIDE_WINDOWS`（shell 的 `spawn_client` 用 `scrub_env` 透传 MakePID* 给子进程；若 finance-brief.exe 继承到 MAKEPAD_REMOTE，会自己再 bind 一次 shell port 报 `os error 10048`）
+   - 固定 `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-msvc`
+4. `subprocess.Popen` 启动 `octosense.exe --apps <catalog> --remote 57450 --hide-windows`，`CREATE_NO_WINDOW`，cwd=`../OctoSense`
+5. 默认 `--no-wait=False`：循环 `/s` 60 次 ×0.5s 等待 shell 起来；用 `--no-wait` 立即返回（PID 已知但 shell 还在 init）
+6. `proc.wait()` 前台阻塞；`Ctrl-C` → `proc.terminate()`
+
+#### 验收（2026-10-06 现场数据）
+
+| 检查 | 命令 / 路径 | 期望 |
+|---|---|---|
+| 进程 | `tasklist /FI "IMAGENAME eq octosense.exe"` | octosense.exe PID 28488 存活 |
+| 进程 | `tasklist /FI "IMAGENAME eq finance-brief.exe"` | finance-brief.exe PID 20140 存活（StartTime 比 octosense 晚 ~1.5min） |
+| Shell 端点 | `curl -s http://127.0.0.1:57450/s` | HTTP 200，返回 `{"app":"octosense.exe",...}` |
+| 窗口 | `curl -X POST http://127.0.0.1:57450/g` | 返回 PNG 路径，`cp` 到 `finance-brief/.octosense/octosense-grab-fresh.png` 应看到 launcher 完整渲染 |
+| Log | `Get-Content finance-brief/.octosense/logs/clients/octosense-<PID>-client-1.log -Tail 5` | 末行 `finance-brief MOUNT route=launcher src_len=NNNNN built=true eval_ok=true view_set=true`，无 `bind ... failed`、无 `exited before opening a window` |
+
+截图见 `finance-brief/.octosense/octosense-grab-fresh.png`（2026-10-06 11:03）：shell 顶栏 `OctoSense · Light · finance_brief`，finance_brief 窗口内 launcher 含 4 sections × 12 tiles 全部就位。
+
+#### 前置条件
+
+| 条件 | 路径 / 命令 | 备注 |
+|---|---|---|
+| OctoSense shell 已 build | `OctoSense/target/release/octosense.exe` | 没有 → `cd ../OctoSense && cargo build --release` |
+| finance-brief 已 build | `finance-brief/apps/desktop/target/release/finance-brief.exe` | 没有 → `install-as-makepad-app.py` 会替你 build |
+| Makepad rev 对齐 | `apps/desktop/Cargo.toml` pin 与 `../makepad` HEAD 一致 | 不一致 → `install-as-makepad-app.py` 报 `SystemExit(3)` |
+| Python 3（stdlib only） | `python --version` | 脚本只用 `argparse` / `subprocess` / `pathlib` / `json` / `urllib.request`，无需第三方包 |
+| 当前 shell 干净（无残留） | `tasklist /FI "IMAGENAME eq finance-brief.exe"` 为空 | 残留会让新 spawn 撞端口或同时拉起两个窗口 |
+
+#### catalog `executable` 字段的 `.exe` 后缀坑点（Windows）
+
+Rust `Command::new("C:/.../finance-brief")` 在 Windows 上**不会**自动补 `.exe`（与 PowerShell `Start-Process` 不同）。catalog 里写 `"executable": ".../finance-brief"` 时 `spawn_client` 报 ENOENT / silent spawn fail，shell log 看起来 `ok`、finance-brief 不挂。**所以 `executable` 字段必须含 `.exe` 后缀**。
+
+`install-as-makepad-app.py:68` 已对此处理：检测后 `exe = exe_base.with_suffix(".exe") if is_windows else exe_base`，保证写入字段总是带后缀。**直接编辑 `catalog/apps.json` 时**仍要手动带 `.exe`，否则下次 `cargo build --refresh` 之类的脚本覆盖写错。
+
+#### Rebuild / 清理
+
+| 操作 | 命令 |
+|---|---|
+| 改 `bundle/screens/*.octoscript` 后只刷 catalog（不重 build） | 直接编辑 `catalog/apps.json` |
+| 改 `apps/desktop/src/*.rs` 后 | `python scripts/install-as-makepad-app.py`（自动 cargo build + 写 catalog） |
+| 移除 finance-brief 从 launcher | `python scripts/install-as-makepad-app.py --uninstall` |
+| 试运行不写文件 | `python scripts/install-as-makepad-app.py --dry-run` |
+| 杀掉当前进程重跑 | `powershell -NoProfile -Command "taskkill /IM finance-brief.exe /F; taskkill /IM octosense.exe /F"` |
 
 > **v6 修复（2026-10-05）**：之前 session 误跑 `install-as-system-app.py`（legacy Page-format 脚本）会在 `OctoSense/desktop/system-apps.json` 注册 finance-brief 并拷 bundle 到 `OctoSense/apps/finance-brief/bundle/`，但源 bundle 没有 `launcher.card` 所以 page.card 也没创建，shell 把 system-apps.json 当 system app 加载时报 `page.card 系统找不到指定文件 (os error:2)`。
 >
-> **正确路径**：finance-brief 是 developer program（不是 system app），应该走 `~/.octosense/apps.json` 的 `executable=` 字段。`install-as-makepad-app.py` 已正确实现此路径。
+> **正确路径**：finance-brief 是 developer program（不是 system app），应该走项目内 `finance-brief/catalog/apps.json` 的 `executable=` 字段。`install-as-makepad-app.py` 已正确实现此路径（2026-10-15 起写 `catalog/apps.json` 而不是 `~/.octosense/apps.json`）。
 >
 > **如果 shell 仍报 page.card**：
 > 1. `python scripts/install-as-system-app.py --uninstall`（v6 新加）—— 清理 OctoSense 侧污染
@@ -75,7 +158,7 @@ cd ../OctoSense && cargo run --release -p octosense
 > 3. 重跑 `python scripts/install-as-makepad-app.py` —— 重新写 user catalog
 
 > **为什么不直接写 `OctoSense/desktop/config/apps.json`?**  
-> `config/apps.json` 是 `OctoSense` 仓文件，finance-brief 不是它的 owner。修改 dep 仓代码会引入同步负担（finance-brief 升级 → OctoSense 跟着改 → PR 流程）。改用 `~/.octosense/apps.json`（用户级 catalog，OctoSense shell 的 catalog 查找优先级在 `config/apps.json` 之前）写注册 — `register-with-shell.py` 是这个入口；`install-as-makepad-app.py` 是它的 build+register 一步式版本。
+> `config/apps.json` 是 `OctoSense` 仓文件，finance-brief 不是它的 owner。修改 dep 仓代码会引入同步负担（finance-brief 升级 → OctoSense 跟着改 → PR 流程）。改用项目内的 `finance-brief/catalog/apps.json`（`install-as-makepad-app.py` 写入），启动 shell 时由 `run-on-octosense.py` 传 `--apps <catalog>` 显式读；不依赖 `~/.octosense/` 或 dep 仓。
 
 ### 3.3 Headless 验证（remote bridge）
 
@@ -109,18 +192,20 @@ cargo makepad android run -p finance-brief --release
 
 ## 4. 脚本（`scripts/*.py`）
 
-2026-10-05 从原 `.sh` 全部转为 `.py`：stdlib only（argparse / subprocess / urllib.request / pathlib / shutil），Windows 不需 Git Bash / WSL 直接 `python foo.py` 即可跑。每个脚本支持 `--help`，参数错 exit 2，bridge 不可达 exit 7。
+2026-10-05 起脚本全部为 `.py`：stdlib only（argparse / subprocess / urllib.request / pathlib / shutil），Windows 不需 Git Bash / WSL 直接 `python foo.py` 即可跑。每个脚本支持 `--help`，参数错 exit 2，bridge 不可达 exit 7。详细使用见 [scripts/README.md](scripts/README.md)（目录表 + 30 秒决策表 + 退出码约定）。
 
 | 脚本 | 用途 |
 |------|------|
-| `install-as-makepad-app.py` | **当前推荐**。Build + 注册 finance-brief 到 OctoSense shell 用户级 catalog（`~/.octosense/apps.json`）。含 makepad rev 对齐检查 + UTF-8 + Python bool fix（Windows 中文 label 兼容）。 |
-| `register-with-shell.py` | 把 finance-brief 注册到 OctoSense shell 用户级 catalog（`~/.octosense/apps.json`），不 rebuild。详细见 [scripts/README.md](scripts/README.md)。 |
+| `install-as-makepad-app.py` | **当前推荐**。Build + 写 `finance-brief/catalog/apps.json`（项目内，不写 dep 仓）。含 makepad rev 对齐检查 + UTF-8 + Python bool fix（Windows 中文 label 兼容）。 |
 | `install-as-system-app.py` | **legacy**。把 bundle 拷到 `OctoSense/apps/finance-brief/bundle/`（写 dep 仓库），为老 Page-format bundle（`*.card` 文件）设计。已加防御式：找不到源文件就 warning 跳过不崩；当前 Path-1 bundle 下装到空 bundle，WARNING 提示用 `install-as-makepad-app.py`。（支持 `--uninstall`，v6 新增） |
-| `run-octosense.py` | 调 `install-as-makepad-app.py` + `cargo run --release -p octosense`。当前 Path-1 bundle 下推荐直接 `cargo run -p octosense`（已通过 `install-as-makepad-app.py` 注册过 finance-brief 即可）。 |
+| `run-on-octosense.py` | 启动 OctoSense shell，自动加 `--apps <catalog>` 与 `OCTOSENSE_HOME=finance-brief/.octosense/`。不 rebuild；前置步骤是 `install-as-makepad-app.py`。 |
+| `migrate-octosense-home.py` | 一次性迁移：把 `~/.octosense/` 拷到 `finance-brief/.octosense/`。跑一次即完事。 |
 | `drive-test.py <port>` | 通过 remote bridge 自动点 launcher 5 个 tab，验证屏幕 label 序列。 |
 | `verify.py <port>` | 通过 remote bridge 验证 5 个行情 tab + 刷新按钮（坐标硬编码，对应 `quote_list` 屏幕布局）。 |
+| `clean-shell-pollution.py` | 清理 finance-brief 在 OctoSense shell 留下的 3 处污染（误跑 `install-as-system-app.py` 后的产物）。 |
+| `diagnose-shell-state.py` | 只读诊断：扫 5 处路径，输出 JSON，不写任何文件。 |
 
-旧 `.sh` 文件已删除。
+旧 `.sh` 文件已移到 [`scripts/legacy/`](scripts/legacy/README.md)（不删、查看记录用）。同目录下还有 3 个被取代的 `.py`（`run-octosense.py` / `register-with-shell.py` / `verify_swap.py`）+ 22 个调试探针（`_*.py` `_*.rs`，`_catalog_constants.py` 是依赖模块留下）。
 
 ## 5. 仓库结构
 
@@ -171,6 +256,9 @@ finance-brief/
 依据 `docs/R-4-l0-cards.md §5`：9 个界面为纯 L0 声明式；3 个
 （K线、event_stream、datasource_status）允许 L1 算术运算。
 
+- 架构图
+- ![](docs/verify-launcher-fullsize2.png)
+- ![](docs/after.png)
 ## 7. 测试
 
 ```sh
