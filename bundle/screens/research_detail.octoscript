@@ -1,7 +1,7 @@
 // research_detail.octoscript — 研究卡详情屏。
 
 fn screen_research_detail() {
-    let items = sget(stk_research, fb_research_seed)
+    let items = fb_research_seed
     let idx = sget("fb_research_index", 0)
     let title = items[idx][2]
     let tag = items[idx][1]

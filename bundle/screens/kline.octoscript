@@ -10,8 +10,8 @@
 // `octoscript_widgets::script_mod(vm)` + `makepad_plot::script_mod(vm)`.
 
 fn screen_kline() {
-    let period = sget("fb_kline_period", "1d")
-    let symbol = sget("fb_kline_symbol", "sh000001")
+    let period = "1d"
+    let symbol = "sh000001"
     let active_1d = 1
     let active_5d = 0
     let active_1mo = 0

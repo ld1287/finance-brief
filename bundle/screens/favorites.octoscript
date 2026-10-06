@@ -4,7 +4,7 @@
 // `st[stk_favorites]` (set by `fav.toggle`); falls back to `fb_fav_seed`.
 
 fn screen_favorites() {
-    let items = sget(stk_favorites, fb_fav_seed)
+    let items = fb_fav_seed
     let rows = []
     let n = items.len()
     for i in n {

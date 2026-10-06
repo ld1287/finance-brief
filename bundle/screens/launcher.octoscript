@@ -1,46 +1,73 @@
-// launcher.octoscript — finance-brief launcher / home screen.
+// launcher.octoscript — finance-brief 主菜单（真实 nav button）。
 //
-// 6 tile launcher (per `bundle/main.splash:163-...`). Mirrors the role of
-// `Octoscript-Makepad/components/flutter/material_3_demo.octoscript`'s
-// home / index pattern: a grid of `tapto`-bound tiles that route into
-// the screen selected by `_index.octoscript`.
+// 11 个真实路由 + 2 个 checkbox 互动 demo。每个路由是一个 list-row 按钮：
+//   [彩色圆形 badge + 标题 + 副标题 + ›]
+//
+// `row` 自带 `tapto` 时 translator 加 OctoscriptTap overlay
+// （octoscript-makepad/src/lib.rs:228），保证命中又不会捕获手指拖动。
+//
+// 设计参考：
+//   - Octoscript-Makepad/components/flutter/_kit.octoscript:509 `c_iconrow`
+//   - Octoscript-Makepad/components/material/catalog.octoscript:466  `nav_btn`
+//
+// finance-brief 的 `_kit.octoscript` 只注册了 `txt`，没注册 `icon` / `spacer` /
+// `rule`（Font Awesome 字符在 finance-brief BAKED 里没有 icon font），所以
+// 这里用「彩色圆形 badge + 单字」替代 icon font；chevron 用 `›`（U+203A）。
+
+fn fb_navbtn(letter, tint, title, subtitle, route) {
+    let text_col = []
+    text_col.push(txt(title, 16, 500, fb_ink))
+    if subtitle != "" {
+        text_col.push(txt(subtitle, 12, 400, fb_secondary))
+    }
+    return {t: "row", fillw: 1, h: 64, padx: 16, pady: 8, spacing: 12,
+            aligny: 0.5, radius: fb_radius_card, bg: fb_bg_elevated,
+            tapto: route, c: [
+        {t: "column", w: 40, h: 40, radius: 20, bg: tint,
+         alignx: 0.5, aligny: 0.5,
+         c: [ txt(letter, 18, 600, #xffffffff) ]},
+        {t: "column", fillw: 1, fith: 1, spacing: 3, c: text_col},
+        txt("›", 20, 400, fb_secondary),
+    ]}
+}
 
 fn screen_launcher() {
     return fb_page(fb_bg, [
-        {t: "column", fillw: 1, pad: 8, spacing: 8, c: [
+        {t: "column", fillw: 1, pad: 12, spacing: 12, c: [
             fb_title("财经简报"),
-            fb_caption("OctoSense · 单 Octoscript 方案"),
+            fb_caption("OctoSense · 单 Octoscript 方案 · 11 路由"),
+
             fb_section("主功能"),
-            {t: "row", fillw: 1, spacing: 8, c: [
-                fb_tile("新闻简报", "news_list", fb_accent),
-                fb_tile("行情看盘", "quote_list", fb_green_up),
-            ]},
-            {t: "row", fillw: 1, spacing: 8, c: [
-                fb_tile("研究卡", "research_list", fb_warn),
-                fb_tile("K 线", "kline", fb_accent),
-            ]},
+            fb_navbtn("新", fb_accent,    "新闻简报",   "Sina 财经 RSS",       "news_list"),
+            fb_navbtn("行", fb_green_up,  "行情看盘",   "A / US / Crypto / FX", "quote_list"),
+            fb_navbtn("研", fb_warn,      "研究卡",     "公司财报与纪要",       "research_list"),
+            fb_navbtn("K",  fb_accent_h,  "K 线",       "1d / 5d / 1m",         "kline"),
+
             fb_section("数据"),
-            {t: "row", fillw: 1, spacing: 8, c: [
-                fb_tile("收藏", "favorites", fb_red_down),
-                fb_tile("设置", "settings", fb_secondary),
-            ]},
+            fb_navbtn("★", fb_red_down,  "收藏",       "本地存储",             "favorites"),
+            fb_navbtn("⚙", fb_secondary, "设置",       "主题 / 刷新频率",      "settings"),
+
             fb_section("高级"),
-            {t: "row", fillw: 1, spacing: 8, c: [
-                fb_tile("事件流", "event_stream", fb_accent),
-                fb_tile("数据源状态", "datasource_status", fb_secondary),
-            ]},
+            fb_navbtn("⚡", fb_accent,    "事件流",     "实时事件流",           "event_stream"),
+            fb_navbtn("源", fb_secondary, "数据源状态", "5 数据源健康",         "datasource_status"),
+
             fb_section("关于"),
-            {t: "row", fillw: 1, spacing: 8, c: [
-                fb_tile("免责声明", "disclaimer", fb_secondary),
-                fb_tile("新闻详情", "news_detail", fb_accent),
-            ]},
-            {t: "row", fillw: 1, spacing: 8, c: [
-                fb_tile("研究详情", "research_detail", fb_warn),
-                {t: "column", fillw: 1, h: fb_tile_h, radius: fb_radius_card,
-                 bg: fb_neutral, padx: 16, pady: 16, alignx: 0.5, aligny: 0.5,
-                 c: [
-                    txt("Refresh", 14, 500, fb_ink),
-                    fb_caption("reload all"),
+            fb_navbtn("免", fb_secondary, "免责声明",   "数据来源说明",         "disclaimer"),
+            fb_navbtn("详", fb_accent,    "新闻详情",   "首条要闻",             "news_detail"),
+            fb_navbtn("细", fb_warn,      "研究详情",   "首篇研究",             "research_detail"),
+
+            fb_section("互动示例"),
+            {t: "column", fillw: 1, radius: fb_radius_card,
+             bg: fb_bg_elevated, pad: 12, spacing: 8, c: [
+                {t: "row", fillw: 1, h: 40, spacing: 12, aligny: 0.5,
+                 tapto: "set:fb_demo_notify=!", c: [
+                    {t: "checkbox", on: 0, w: 18, h: 18},
+                    txt("启用通知", 14, 400, fb_ink),
+                ]},
+                {t: "row", fillw: 1, h: 40, spacing: 12, aligny: 0.5,
+                 tapto: "set:fb_demo_dark=!", c: [
+                    {t: "checkbox", on: 0, w: 18, h: 18},
+                    txt("深色模式", 14, 400, fb_ink),
                 ]},
             ]},
         ]},

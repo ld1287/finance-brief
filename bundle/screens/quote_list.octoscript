@@ -5,7 +5,7 @@
 // `tapto: "set:fb_quote_tab=a"` etc.
 
 fn screen_quote_list() {
-    let tab = sget("fb_quote_tab", "a")
+    let tab = "a"
     let items = fb_quote_a_seed
     let tab_a = 1
     let tab_us = 0

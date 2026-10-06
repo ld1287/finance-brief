@@ -24,9 +24,13 @@ finance-brief/_captures/
 .agents/
 
 # Local orchestration TODO files (git-ignored coordination docs)
-# .todo-*.md
+.todo-*.md
 
 # Local check_card validation logs
 .check-*.log
 catalog/
 .octosense/
+nul
+
+# Headless probe logs and ad-hoc verify scripts (runtime debug, not project source)
+logs/

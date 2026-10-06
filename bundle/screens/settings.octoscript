@@ -5,7 +5,7 @@
 // route into this screen; `st` changes drive re-renders only.
 
 fn screen_settings() {
-    let settings = sget(stk_settings, fb_settings_seed)
+    let settings = fb_settings_seed
     let theme = settings.theme
     let is_dark = 0
     if theme == "dark" { is_dark = 1 }

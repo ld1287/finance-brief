@@ -16,7 +16,7 @@
 
 // The 12 screens plus the parameterised detail routes are mapped here.
 // `route` keys come from `fb_tile(...)` / `fb_backbar(...)` tapto strings.
-let r = sget(stk_route, "launcher")
+let r = "launcher"
 let found = 0
 let node = screen_launcher()
 
@@ -37,5 +37,6 @@ if r == "disclaimer" { node = screen_disclaimer(); found = 1 }
 // `screen_research_detail` always render the first seed item. Add
 // `if r == "news_detail/<key>" { ... }` here when fetcher workflow
 // supplies a real key.
+
 if found == 0 { node = screen_launcher() }
 node

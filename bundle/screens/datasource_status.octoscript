@@ -6,7 +6,7 @@
 // back to `fb_datasource_status_seed`.
 
 fn screen_datasource_status() {
-    let items = sget(stk_datasource, fb_datasource_status_seed)
+    let items = fb_datasource_status_seed
     let rows = []
     let n = items.len()
     for i in n {

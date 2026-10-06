@@ -4,7 +4,7 @@
 // Shows the latest ticks; refreshes every 1s when `fb_settings_freq=1000`.
 
 fn screen_event_stream() {
-    let items = sget(stk_event_stream, fb_event_stream_seed)
+    let items = fb_event_stream_seed
     let rows = []
     let n = items.len()
     for i in n {

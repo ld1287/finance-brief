@@ -4,7 +4,7 @@
 // to `fb_news_seed`. Each row navigates to `news_detail` on tap.
 
 fn screen_news_list() {
-    let items = sget(stk_news_list, fb_news_seed)
+    let items = fb_news_seed
     let rows = []
     let i = 0
     let n = items.len()
