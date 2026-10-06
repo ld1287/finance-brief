@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-label="finance-brief 财经简报 — OctoSense 应用">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="55%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="chartFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22D3EE" stop-opacity="0.50"/>
+      <stop offset="100%" stop-color="#22D3EE" stop-opacity="0.0"/>
+    </linearGradient>
+    <linearGradient id="chartLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="pillHi" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.03"/>
+    </linearGradient>
+    <pattern id="grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#FFFFFF" stroke-width="0.6" opacity="0.05"/>
+    </pattern>
+    <style>
+      .ff-sc { font-family: "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif; }
+      .ff-en { font-family: "Segoe UI", "SF Pro Text", "Inter", system-ui, sans-serif; }
+      .ff-mono { font-family: "JetBrains Mono", "SF Mono", "Consolas", ui-monospace, monospace; }
+    </style>
+  </defs>
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <rect width="1280" height="400" fill="url(#grid)"/>
+  <rect x="0" y="0" width="1280" height="3" fill="#22D3EE"/>
+  <rect x="0" y="399" width="1280" height="1" fill="#22D3EE" opacity="0.25"/>
+  <!-- title block -->
+  <g transform="translate(60, 70)">
+    <g>
+      <rect x="0" y="0" width="140" height="28" rx="14" fill="#22D3EE" fill-opacity="0.12" stroke="#22D3EE" stroke-opacity="0.55"/>
+      <circle cx="16" cy="14" r="3.5" fill="#22D3EE"/>
+      <text x="28" y="19" class="ff-en" fill="#67E8F9" font-size="12" font-weight="600" letter-spacing="1">OCTOSENSE APP</text>
+    </g>
+    <text x="0" y="100" class="ff-sc" fill="#F1F5F9" font-size="68" font-weight="700" letter-spacing="3">财经简报</text>
+    <text x="0" y="142" class="ff-mono" fill="#22D3EE" font-size="22" font-weight="500" letter-spacing="2">finance-brief</text>
+    <text x="0" y="178" class="ff-sc" fill="#CBD5E1" font-size="17" font-weight="400">单一 Octoscript 路径 · 12 界面 · 5 数据源 · native widgets via makepad</text>
+  </g>
+  <!-- chart -->
+  <g transform="translate(700, 56)">
+    <rect x="0" y="0" width="520" height="188" rx="10" fill="#FFFFFF" fill-opacity="0.04" stroke="#22D3EE" stroke-opacity="0.22"/>
+    <rect x="0" y="0" width="520" height="22" rx="10" fill="#22D3EE" fill-opacity="0.06"/>
+    <text x="14" y="15" class="ff-en" fill="#94A3B8" font-size="10" font-weight="600" letter-spacing="2">QUOTE · sample trend (illustrative)</text>
+    <circle cx="500" cy="11" r="3" fill="#10B981"/>
+    <line x1="20" y1="52" x2="500" y2="52" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="0.6"/>
+    <line x1="20" y1="90" x2="500" y2="90" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="0.6"/>
+    <line x1="20" y1="128" x2="500" y2="128" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="0.6"/>
+    <path d="M 30 130 L 80 110 L 130 125 L 180 95 L 230 105 L 280 75 L 330 85 L 380 50 L 430 60 L 480 30 L 500 25 L 500 165 L 30 165 Z" fill="url(#chartFill)"/>
+    <path d="M 30 130 L 80 110 L 130 125 L 180 95 L 230 105 L 280 75 L 330 85 L 380 50 L 430 60 L 480 30 L 500 25" fill="none" stroke="url(#chartLine)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <rect x="77" y="105" width="6" height="17" fill="#10B981" opacity="0.8"/>
+    <rect x="177" y="90" width="6" height="15" fill="#10B981" opacity="0.8"/>
+    <rect x="277" y="70" width="6" height="18" fill="#F87171" opacity="0.8"/>
+    <rect x="377" y="45" width="6" height="20" fill="#10B981" opacity="0.8"/>
+    <rect x="477" y="22" width="6" height="20" fill="#10B981" opacity="0.8"/>
+    <circle cx="500" cy="25" r="5" fill="#22D3EE" stroke="#0F172A" stroke-width="2"/>
+    <text x="14" y="55" class="ff-mono" fill="#475569" font-size="9">+5%</text>
+    <text x="14" y="93" class="ff-mono" fill="#475569" font-size="9">0</text>
+    <text x="14" y="131" class="ff-mono" fill="#475569" font-size="9">-3%</text>
+  </g>
+  <!-- data sources -->
+  <g transform="translate(60, 300)">
+    <text x="0" y="0" class="ff-en" fill="#64748B" font-size="10" font-weight="700" letter-spacing="2.5">DATA SOURCES</text>
+    <g transform="translate(0, 14)">
+      <rect x="0" y="0" width="122" height="34" rx="7" fill="url(#pillHi)" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <circle cx="14" cy="17" r="4" fill="#EF4444"/>
+      <text x="26" y="16" class="ff-sc" fill="#E2E8F0" font-size="12" font-weight="500">新浪财经</text>
+      <text x="26" y="28" class="ff-en" fill="#64748B" font-size="9" letter-spacing="0.5">Sina</text>
+    </g>
+    <g transform="translate(130, 14)">
+      <rect x="0" y="0" width="122" height="34" rx="7" fill="url(#pillHi)" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <circle cx="14" cy="17" r="4" fill="#10B981"/>
+      <text x="26" y="16" class="ff-sc" fill="#E2E8F0" font-size="12" font-weight="500">腾讯证券</text>
+      <text x="26" y="28" class="ff-en" fill="#64748B" font-size="9" letter-spacing="0.5">Tencent</text>
+    </g>
+    <g transform="translate(260, 14)">
+      <rect x="0" y="0" width="122" height="34" rx="7" fill="url(#pillHi)" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <circle cx="14" cy="17" r="4" fill="#22D3EE"/>
+      <text x="26" y="16" class="ff-sc" fill="#E2E8F0" font-size="12" font-weight="500">Stooq</text>
+      <text x="26" y="28" class="ff-en" fill="#64748B" font-size="9" letter-spacing="0.5">Stooq</text>
+    </g>
+    <g transform="translate(390, 14)">
+      <rect x="0" y="0" width="122" height="34" rx="7" fill="url(#pillHi)" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <circle cx="14" cy="17" r="4" fill="#A855F7"/>
+      <text x="26" y="16" class="ff-sc" fill="#E2E8F0" font-size="12" font-weight="500">Hyperliquid</text>
+      <text x="26" y="28" class="ff-en" fill="#64748B" font-size="9" letter-spacing="0.5">Crypto</text>
+    </g>
+    <g transform="translate(520, 14)">
+      <rect x="0" y="0" width="122" height="34" rx="7" fill="url(#pillHi)" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <circle cx="14" cy="17" r="4" fill="#F59E0B"/>
+      <text x="26" y="16" class="ff-sc" fill="#E2E8F0" font-size="12" font-weight="500">Frankfurter</text>
+      <text x="26" y="28" class="ff-en" fill="#64748B" font-size="9" letter-spacing="0.5">ECB FX</text>
+    </g>
+  </g>
+  <!-- stat chips -->
+  <g transform="translate(708, 290)">
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="122" height="60" rx="10" fill="#FFFFFF" fill-opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="0" y="0" width="3" height="60" rx="1.5" fill="#22D3EE"/>
+      <text x="14" y="30" class="ff-en" fill="#22D3EE" font-size="22" font-weight="700">12</text>
+      <text x="14" y="48" class="ff-sc" fill="#94A3B8" font-size="11" font-weight="500">界面</text>
+    </g>
+    <g transform="translate(130, 0)">
+      <rect x="0" y="0" width="122" height="60" rx="10" fill="#FFFFFF" fill-opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="0" y="0" width="3" height="60" rx="1.5" fill="#10B981"/>
+      <text x="14" y="30" class="ff-en" fill="#10B981" font-size="22" font-weight="700">5</text>
+      <text x="14" y="48" class="ff-sc" fill="#94A3B8" font-size="11" font-weight="500">数据源</text>
+    </g>
+    <g transform="translate(260, 0)">
+      <rect x="0" y="0" width="122" height="60" rx="10" fill="#FFFFFF" fill-opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="0" y="0" width="3" height="60" rx="1.5" fill="#A855F7"/>
+      <text x="14" y="30" class="ff-en" fill="#A855F7" font-size="22" font-weight="700">1</text>
+      <text x="14" y="48" class="ff-sc" fill="#94A3B8" font-size="11" font-weight="500">Octoscript 路径</text>
+    </g>
+    <g transform="translate(390, 0)">
+      <rect x="0" y="0" width="122" height="60" rx="10" fill="#FFFFFF" fill-opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="0" y="0" width="3" height="60" rx="1.5" fill="#F59E0B"/>
+      <text x="14" y="30" class="ff-en" fill="#F59E0B" font-size="22" font-weight="700">✓</text>
+      <text x="14" y="48" class="ff-sc" fill="#94A3B8" font-size="11" font-weight="500">native widgets</text>
+    </g>
+  </g>
+  <!-- footer -->
+  <text x="60" y="378" class="ff-en" fill="#475569" font-size="11" letter-spacing="0.5">Native widgets via Octoscript DSL → makepad · Apache-2.0</text>
+  <text x="1220" y="378" text-anchor="end" class="ff-mono" fill="#475569" font-size="11" letter-spacing="1">// OctoSense</text>
+</svg>

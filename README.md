@@ -1,5 +1,13 @@
 # finance-brief
 
+<p align="center">
+  <img src="docs/finance-brief-card.svg" alt="finance-brief · 财经简报" width="100%">
+</p>
+
+<p align="center">
+  <em>OctoSense 应用 · 单一 Octoscript 路径 · 12 界面 · 5 数据源 · native widgets via makepad</em>
+</p>
+
 ## OctoSense 应用 — 单一 Octoscript 路径
 
 finance-brief 是一个 OctoSense 应用，**完全由 `.octoscript` 文件**经由
