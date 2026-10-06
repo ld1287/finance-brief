@@ -4,13 +4,17 @@ target/
 .local-state/
 *.key
 *.cert
+__pycache__/
 scripts/_*.py
+scripts/_*.rs
+# Archived scripts (deprecated .sh legacy + one-shot helpers); see scripts/legacy/README.md
+scripts/legacy/
 # OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-DONE/
+
 # Splash runtime cache: the app writes cache_*.json / settings.json
 # into its storage jail (CWD-relative). Keep them local.
 # The nested folder name is the app id; do not commit it.
@@ -20,7 +24,9 @@ finance-brief/_captures/
 .agents/
 
 # Local orchestration TODO files (git-ignored coordination docs)
-.todo-*.md
+# .todo-*.md
 .todo-*/
 # Local check_card validation logs
 .check-*.log
+catalog/
+.octosense/

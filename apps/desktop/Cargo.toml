@@ -6,19 +6,33 @@ description = "OctoSense finance brief app — finance news, quotes, favorites, 
 license = "Apache-2.0"
 
 [dependencies]
-# finance-brief lives outside the Octoscript-Makepad workspace, so we declare
-# the makepad and octoscript deps explicitly rather than via `workspace = true`
-# (which only resolves inside the workspace at apps/flutter-samples). The
-# revs MUST match Octoscript-Makepad/Cargo.toml's [workspace.dependencies]
-# or `makepad_widgets::ScriptVm` (rev 975c5630) and `octoscript_render`'s
-# re-exported `makepad_script::ScriptVm` will be distinct types and won't
-# unify — the desktop app already failed compile with that mismatch.
-makepad-widgets = { git = "https://github.com/OctoSense-org/makepad.git", rev = "975c5630e01b0f3f3ae16cafd2e0fce3c9a5f7d9" }
-octoscript-widgets = { path = "../../../Octoscript-Makepad/crates/octoscript-widgets" }
-octoscript-render = { path = "../../../Octoscript-Makepad/crates/octoscript-render" }
-octoscript-makepad = { path = "../../../Octoscript-Makepad/crates/octoscript-makepad" }
-makepad-plot = { path = "../../../Octoscript-Makepad/crates/makepad-plot" }
-octoscript-ui-l0 = { git = "https://github.com/OctoSense-org/Octoscript.git", rev = "68f6a9df55692b5d8ef8873a12721e279a3f40d6" }
+# finance-brief lives outside both OctoSense and Octoscript-Makepad
+# workspaces, so we declare the makepad and octoscript deps explicitly
+# rather than via `workspace = true`. The revs MUST match
+# OctoSense/Cargo.toml's [workspace.dependencies] or `makepad_widgets::ScriptVm`
+# and `octoscript_render`'s re-exported `makepad_script::ScriptVm` will
+# be distinct types and won't unify — the desktop app previously failed
+# compile with that mismatch. To match OctoSense: makepad c155f61d,
+# Octoscript 5991dfae, Octoscript-Makepad 2cc5ef37.
+# All external dependencies are now git links (no local path); the revs
+# MUST match OctoSense/Cargo.toml [workspace.dependencies] so the makepad
+# and Octoscript VMs unify across both workspaces — the desktop app
+# previously failed compile with mismatched revs (`makepad_widgets::ScriptVm`
+# and `octoscript_render`'s re-exported `makepad_script::ScriptVm` would
+# be distinct types). See OctoSense/AGENTS.md §2 "One revision per
+# external dependency". To match OctoSense: makepad c155f61d, Octoscript
+# 5991dfae, Octoscript-Makepad 2cc5ef37.
+makepad-widgets    = { git = "https://github.com/OctoSense-org/makepad.git",            rev = "c155f61d0e1600d2ec474209374444a38a09a470" }
+octoscript-widgets = { git = "https://github.com/OctoSense-org/Octoscript-Makepad.git", rev = "2cc5ef37d7d6a3d2992673389ce74488f7bb2d87" }
+octoscript-render  = { git = "https://github.com/OctoSense-org/Octoscript-Makepad.git", rev = "2cc5ef37d7d6a3d2992673389ce74488f7bb2d87" }
+octoscript-makepad = { git = "https://github.com/OctoSense-org/Octoscript-Makepad.git", rev = "2cc5ef37d7d6a3d2992673389ce74488f7bb2d87" }
+makepad-plot       = { git = "https://github.com/OctoSense-org/Octoscript-Makepad.git", rev = "2cc5ef37d7d6a3d2992673389ce74488f7bb2d87" }
+octoscript-ui-l0   = { git = "https://github.com/OctoSense-org/Octoscript.git",        rev = "5991dfae9344589e732b2605b530f788e8bbcd11" }
+# Original local-path references retained as comments for fall-back / history:
+# octoscript-widgets = { path = "../../../Octoscript-Makepad/crates/octoscript-widgets" }
+# octoscript-render  = { path = "../../../Octoscript-Makepad/crates/octoscript-render" }
+# octoscript-makepad = { path = "../../../Octoscript-Makepad/crates/octoscript-makepad" }
+# makepad-plot       = { path = "../../../Octoscript-Makepad/crates/makepad-plot" }
 
 # Same shape as flutter-samples: a cdylib for mobile, an rlib so the desktop
 # binary below can link it, and the binary itself for `cargo run`.
@@ -31,13 +45,14 @@ crate-type = ["cdylib", "rlib"]
 name = "finance-brief"
 path = "src/main.rs"
 
-# Point at the local makepad / Octoscript checkouts, matching what the
-# Octoscript-Makepad workspace does (Cargo.toml lines 32-37). This keeps the
-# edit-build cycle fast and lets the apps sibling to the framework pick up
-# source edits without a git pull.
-[patch."https://github.com/OctoSense-org/makepad.git"]
-makepad-widgets = { path = "../../../makepad/widgets" }
-makepad-script = { path = "../../../makepad/platform/script" }
-
-[patch."https://github.com/OctoSense-org/Octoscript.git"]
-octoscript-ui-l0 = { path = "../../../octoscript/crates/octoscript-ui-l0" }
+# [patch] segments removed: with git links above the rev points at origin
+# directly. Original [patch] blocks retained as comments for fall-back.
+# The local checkout C:\Code\OctoSenseorg\Octoscript-Makepad\ is no longer
+# consulted by cargo — any framework edit must land on origin first.
+#
+# [patch."https://github.com/OctoSense-org/makepad.git"]
+# makepad-widgets = { path = "../../../makepad/widgets" }
+# makepad-script  = { path = "../../../makepad/platform/script" }
+#
+# [patch."https://github.com/OctoSense-org/Octoscript.git"]
+# octoscript-ui-l0 = { path = "../../../octoscript/crates/octoscript-ui-l0" }

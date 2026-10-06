@@ -57,10 +57,9 @@ def main():
     app = here.parent
     ws = app.parent
 
-    # ${OCTOSENSE_HOME:-$HOME}/.octosense — same precedence as the original .sh.
-    base = os.environ.get("OCTOSENSE_HOME") or str(Path.home())
-    user_apps_dir = Path(base) / ".octosense"
-    user_apps = user_apps_dir / "apps.json"
+    # finance-brief 项目的 catalog 入口（按"所有文件在 OctoSenseorg 内"约束）。
+    # shell 通过 --apps 显式读它（scripts/run-on-octosense.py）。
+    catalog_path = app / "catalog" / "apps.json"
 
     # .exe on Windows (Git Bash / WSL); make the catalog entry reflect the actual
     # file we built. cargo writes the same name on every host.
@@ -129,16 +128,16 @@ def main():
             raise SystemExit(3)
 
     # --- 4. Write the catalog entry (idempotent) ------------------------------
-    user_apps_dir.mkdir(parents=True, exist_ok=True)
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
     if dry:
-        print(f"[dry-run] would write to {user_apps}:")
+        print(f"[dry-run] would write to {catalog_path}:")
         print(
             f'  [{{"id":"{ENTRY_ID}","label":"{LABEL}",'
             f'"executable":"{exe}","policy":"{POLICY}"}}]'
         )
     else:
-        if user_apps.exists():
-            with open(user_apps, "r", encoding="utf-8") as f:
+        if catalog_path.exists():
+            with open(catalog_path, "r", encoding="utf-8") as f:
                 arr = json.load(f)
         else:
             arr = []
@@ -150,17 +149,17 @@ def main():
             arr.append({
                 "id": ENTRY_ID,
                 "label": LABEL,
-                "executable": os.path.abspath(str(exe)),
+                "executable": os.path.abspath(str(exe)).replace("\\", "/"),
                 "policy": POLICY,
             })
-        with open(user_apps, "w", encoding="utf-8") as f:
+        with open(catalog_path, "w", encoding="utf-8") as f:
             json.dump(arr, f, ensure_ascii=False, indent=2)
 
     # --- 5. Done ---------------------------------------------------------------
     print()
-    print(f"registered: {user_apps}")
-    print("next: cargo run --release -p octosense")
-    print("      (the shell reads ~/.octosense/apps.json before config/apps.json)")
+    print(f"registered: {catalog_path}")
+    print("next: python scripts/run-on-octosense.py")
+    print("      (the shell reads --apps <catalog> instead of ~/.octosense/)")
 
 
 if __name__ == "__main__":

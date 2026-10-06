@@ -1,8 +1,20 @@
 # `finance-brief/scripts` — 脚本使用手册
 
-> 本目录 8 个 Python 脚本覆盖 finance-brief 在 OctoSense 桌面端的全生命周期:注册、启动、远程桥(headless)验证、shell 污染诊断与清理。每个脚本 `python foo.py --help` 拿完整参数。
+> 本目录 10 个 Python 脚本覆盖 finance-brief 在 OctoSense 桌面端的全生命周期:注册、启动、迁移、远程桥(headless)验证、shell 污染诊断与清理。每个脚本 `python foo.py --help` 拿完整参数。
 
 > 这是根目录 `README.md §4` 的详细补充版。`§4` 适合 30 秒扫一眼,本文适合实际使用时的参考手册。
+
+## 30 秒决策表
+
+| 我想... | 跑这个 |
+|---|---|
+| **第一次** 在 OctoSense 上跑 finance-brief | `install-as-makepad-app.py` → `run-on-octosense.py` |
+| 已经有 `~/.octosense/` 旧数据要迁到项目内 | `migrate-octosense-home.py` |
+| shell 报 `page.card 系统找不到指定文件` | `clean-shell-pollution.py` |
+| 启动有问题但不知道问题在哪 | `diagnose-shell-state.py` |
+| 验证 5 个 launcher tab 真的能点 | `drive-test.py` |
+| 验证 finance-brief 自己的 5 个 tab | `verify.py` |
+| **清掉** 老 Page-format 安装的污染 | `install-as-system-app.py --uninstall` |
 
 ## 目录
 
@@ -11,13 +23,15 @@
 | 1 | [`clean-shell-pollution.py`](#1-clean-shell-pollutionpy) | 清理 finance-brief 在 OctoSense shell 留下的 3 处污染 |
 | 2 | [`diagnose-shell-state.py`](#2-diagnose-shell-statepy) | 只读诊断:扫 5 处路径,输出 JSON,不写任何文件 |
 | 3 | [`drive-test.py`](#3-drive-testpy) | remote bridge 自动点 launcher 5 个 tab,验证 label 序列 |
-| 4 | [`install-as-makepad-app.py`](#4-install-as-makepad-apppy) | **推荐路径**:build + 写 `~/.octosense/apps.json` |
+| 4 | [`install-as-makepad-app.py`](#4-install-as-makepad-apppy) | **推荐路径**:build + 写 `catalog/apps.json`(项目内) |
 | 5 | [`install-as-system-app.py`](#5-install-as-system-apppy) | legacy Page-format 脚本(可选 `--uninstall` 清理) |
-| 6 | [`run-octosense.py`](#6-run-octosensepy) | 调 `install-as-makepad-app.py` + `cargo run -p octosense` |
-| 7 | [`verify.py`](#7-verifypy) | remote bridge 验证 5 个行情 tab + 刷新按钮的 label |
-| 8 | [`register-with-shell.py`](#8-register-with-shellpy) | 把 finance-brief 注册到 OctoSense shell 用户级 catalog(不 rebuild) |
+| 6 | [`verify.py`](#6-verifypy) | remote bridge 验证 finance-brief 自己的 5 个 tab + 刷新按钮的 label |
+| 7 | [`run-on-octosense.py`](#7-run-on-octosensepy) | 调 `install-as-makepad-app.py` + 启动 shell,加 `--apps` 与 `OCTOSENSE_HOME` |
+| 8 | [`migrate-octosense-home.py`](#8-migrate-octosense-homepy) | 一次性把 `~/.octosense/` 拷到 `finance-brief/.octosense/` |
 
 另见:根目录 [`README.md` §4](../README.md#4-脚本-scriptspy)(30 秒速览)。
+
+**已归档脚本** 移到 [`legacy/`](legacy/README.md):4 个 `.sh` 旧版(`install-as-makepad-app.sh` 从未存在)+ 3 个被取代的 `.py`( `run-octosense.py` / `register-with-shell.py` / `verify_swap.py` )+ 23 个调试探针 `_*.py` `_*.rs`。`legacy/` 已被 `.gitignore` 排除。
 
 ## 共同前置
 
@@ -39,25 +53,17 @@
 | `3` | makepad rev 不对齐 | `install-as-makepad-app.py` |
 | `4` | 缺 binary / 不可执行 | `install-as-makepad-app.py` |
 
-其它退出码:`install-as-makepad-app.py` 会把 cargo 的退出码原样透传;`run-octosense.py` 把子进程失败透传。
+其它退出码:`install-as-makepad-app.py` 会把 cargo 的退出码原样透传;`run-on-octosense.py` 把子进程失败透传。
 
 ## `.sh` vs `.py`
 
-`scripts/` 同时挂 5 个 `.sh` legacy 文件:
+`scripts/` **不再**挂 `.sh` 文件:4 个旧版 `.sh` 已移到 `legacy/`(见 [`legacy/README.md`](legacy/README.md)),由 `run-on-octosense.py` 接管启动。
 
-| `.sh`(legacy) | `.py`(推荐) |
-|--------------|-------------|
-| `install-as-makepad-app.sh` | `install-as-makepad-app.py` |
-| `install-as-system-app.sh` | `install-as-system-app.py` |
-| `run-octosense.sh` | `run-octosense.py` |
-| `drive-test.sh` | `drive-test.py` |
-| `verify.sh` | `verify.py` |
-
-`.sh` 是 2026-10-05 重写之前的版本,**没有删除**(怕破坏老 caller),但根目录 `README.md §4` 已声明"旧 `.sh` 文件已删除"。新代码请用 `.py`:
+`.py` 是唯一支持的脚本语言:
 
 - `.py` 用 stdlib only,Windows 原生支持,不用 Git Bash / WSL。
 - `.sh` 在 Windows 需 Git Bash / WSL 才能跑,且依赖 bash 4+ 特性。
-- `.py` 加了 `clean-shell-pollution.py` / `diagnose-shell-state.py` 两个新脚本,`.sh` 版本没有对应物。
+- `.py` 加了 `clean-shell-pollution.py` / `diagnose-shell-state.py` / `migrate-octosense-home.py` 等新脚本,`.sh` 版本没有对应物。
 
 ---
 
@@ -254,7 +260,7 @@ python scripts/drive-test.py --port "$PORT"
 
 **相关脚本**:
 
-- 兄弟脚本 [`verify.py`](#7-verifypy):坐标硬编码,验证 5 个**行情 tab**;本脚本走 widget label,验证 **launcher 5 tab** 路由。
+- 兄弟脚本 [`verify.py`](#6-verifypy):坐标硬编码,验证 5 个**行情 tab**;本脚本走 widget label,验证 **launcher 5 tab** 路由。
 
 ---
 
@@ -324,7 +330,7 @@ python scripts/install-as-makepad-app.py \
 
 **相关脚本**:
 
-- 配 [`run-octosense.py`](#6-run-octosensepy):**不要** 用 `run-octosense.py`,因为它调的是 `install-as-makepad-app.py`(默认 rebuild 太重,不是 "只想刷新 catalog" 的场景)。推荐直接 `cargo run -p octosense`(在 `../OctoSense/` 仓库里),因为 shell 启动时会自动读 `~/.octosense/apps.json`。如果你只想刷新 catalog 不 rebuild,用 [`register-with-shell.py`](#8-register-with-shellpy)。
+- 配 [`run-on-octosense.py`](#7-run-on-octosensepy):本脚本负责 build + 写 catalog;启动 shell 是下一步,调 [`run-on-octosense.py`](#7-run-on-octosensepy)(传 `--apps <catalog>`,不 rebuild,只 spawn shell)。直接手动 `cargo run -p octosense` 也行,shell 启动时会自动读 `catalog/apps.json`(因为 `run-on-octosense.py` 用 `--apps` 显式传)。
 - 清理误装:看 [`clean-shell-pollution.py`](#1-clean-shell-pollutionpy) / [`install-as-system-app.py --uninstall`](#5-install-as-system-apppy)。
 
 ---
@@ -392,58 +398,7 @@ python scripts/install-as-system-app.py --uninstall
 
 ---
 
-## 6. `run-octosense.py`
-
-**用途:** 一键装 + 跑 OctoSense shell。内部就是 `pip install-as-makepad-app.py` + `cargo run --release -p octosense`。
-
-**前置依赖**:
-
-- Python 3.10+。
-- `cargo` 在 PATH 上(`cargo run`)。
-- 同级 `OctoSense/` 仓库。
-
-**用法**:
-
-```sh
-python scripts/run-octosense.py
-```
-
-**参数**:**无**。脚本内有 `argparse.ArgumentParser` 但没注册任何 flag(`-h, --help` 是自动的)。
-
-**行为**:
-
-1. `subprocess.run([python, install-as-makepad-app.py], check=True)`。
-2. `subprocess.run(["cargo", "run", "--release", "-p", "octosense"], check=True, cwd=WS / "OctoSense")`。
-
-**退出码**:
-
-- `0`:成功。
-- `非 0`(cargo 的或子进程的):透传。
-
-**示例**:
-
-```sh
-# 一键装 + 跑(Path-1 bundle 下)
-python scripts/run-octosense.py
-```
-
-**典型错误**:
-
-- cargo 编译失败:看 cargo 输出。
-- `install-as-makepad-app.py` 报错(rev 不对齐 / binary 缺失):exit 码透传。
-
-**相关脚本**:
-
-- **当前 Path-1 bundle 下推荐**(README §3.2 明确建议改用 `install-as-makepad-app.py` + `cargo run -p octosense`,`run-octosense.py` 就是这两个步骤的快捷方式)。
-- 等价手动流程:
-  ```sh
-  python scripts/install-as-makepad-app.py
-  cd ../OctoSense && cargo run --release -p octosense
-  ```
-
----
-
-## 7. `verify.py`
+## 6. `verify.py`
 
 **用途:** remote bridge 验证 5 个行情 tab(`要闻` / `A股` / `美股` / `加密` / `外汇`)+ `收藏` tab + `刷新` 按钮的 label。每步点固定坐标 → 抓 `/snap` → 打印 `Label` widget 文本序列。
 
@@ -507,28 +462,124 @@ python scripts/verify.py "$PORT"
 
 ---
 
-## 8. `register-with-shell.py`
+## 7. `run-on-octosense.py`
 
-**用途:** 轻量只注册脚本。写 `~/.octosense/apps.json`,**不 rebuild**。区别于 [`install-as-makepad-app.py`](#4-install-as-makepad-apppy)(默认会跑 `cargo build`)。
+**用途:** 启动 OctoSense shell 并加载 finance-brief 的 user catalog。区别于已归档的 [`legacy/run-octosense.py`](legacy/README.md):不再 rebuild、不再调 `install-as-makepad-app.py`、不再 spawn `cargo run`(这些由前置脚本负责)。
 
-**用法:**
+**前置依赖**:
 
-```bash
-python scripts/register-with-shell.py             # 检查 binary + 写 entry
-python scripts/register-with-shell.py --dry-run   # 输出 entry,不写
-python scripts/register-with-shell.py --uninstall # 移除 entry
-python scripts/register-with-shell.py --help
+- Python 3.10+(。
+- 同级 `OctoSense/` 仓库(找 `target/release/octosense.exe`)。
+- `install-as-makepad-app.py` 已跑过一次(生成 `catalog/apps.json`)。
+
+**用法**:
+
+```sh
+python scripts/run-on-octosense.py            # 后台运行,Ctrl-C 退出
+python scripts/run-on-octosense.py --no-wait  # 启动后立即返回
+python scripts/run-on-octosense.py --port 60000
 ```
 
-**行为:**
+**参数**(来自 `--help`):
 
-- 二进制不存在 → 退出码 **4**(与 [`install-as-makepad-app.py`](#4-install-as-makepad-apppy) 对齐)
-- catalog 不存在 → 自动创建父目录 + 空数组
-- catalog 不是 JSON 数组 → 退出码 `1`,stderr 拒绝覆盖
-- `--uninstall` 互斥 `--dry-run`;没有 entry → no-op
-- 跨平台:Windows / macOS / Linux / WSL;`OCTOSENSE_HOME` env 优先于 `Path.home()`;Windows 自动加 `.exe` 后缀
+- `--port PORT`(int,默认 `57450`):makepad remote instrument 端口。
+- `--no-wait`(flag):不等待 `/s` HTTP 端点上线就返回。
 
-**为什么这个脚本存在:** 用户原话 *"apps.json 加 finance-brief 条目 这里不能直接写到依赖项目里"*。直接写 `OctoSense/desktop/config/apps.json` 是改 dep 仓;[`install-as-makepad-app.py`](#4-install-as-makepad-apppy) 默认 rebuild 太重。`register-with-shell.py` 是中间档:写 user-level catalog,不 rebuild。
+**行为**:
+
+1. 检查 `finance-brief/catalog/apps.json` 存在,否则 exit 2 并提示先跑 `install-as-makepad-app.py`。
+2. 检查 `OctoSense/target/release/octosense.exe` 存在,否则 exit 3。
+3. mkdir `finance-brief/.octosense/`(运行时数据落地处,project 内)。
+4. 设环境变量:`OCTOSENSE_HOME=<finance_brief>/.octosense`、`MAKEPAD_REMOTE=<port>`、`MAKEPAD_HIDE_WINDOWS=1`、`RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-msvc`。`MAKEOS_HOME` 显式清掉(以防旧版本残留)。
+5. `subprocess.Popen([octosense.exe, "--apps", catalog])`,cwd=`OctoSense/`,Windows 下加 `CREATE_NO_WINDOW`。
+6. 默认循环 `GET /s` 最多 30s 等 shell 上线,之后 `proc.wait()`。
+
+**退出码**:
+
+- `0`:正常退出(Ctrl-C 或 shell 自行退出)。
+- `2`:缺 `catalog/apps.json`。
+- `3`:缺 `OctoSense/target/release/octosense.exe`。
+- shell 退出码透传(常见:`0` 正常 / 启动崩溃时非 0)。
+
+**示例**:
+
+```sh
+# 完整流程(README §3.2)
+python scripts/install-as-makepad-app.py    # build + 写 catalog
+python scripts/run-on-octosense.py          # 起 shell
+```
+
+**典型错误**:
+
+- `missing catalog`:跑 `install-as-makepad-app.py` 先生成。
+- `missing shell binary`:cd 到 `OctoSense/` 后 `cargo build --release -p octosense`。
+- `/s timeout`:30s 内 shell 没起来。看 stdout 是不是缺 `--apps` 之类的 flag 报错。
+- 数据写到 `~/.octosense/` 而不是 `finance-brief/.octosense/`:说明 `OCTOSENSE_HOME` 没生效。看环境是否有同名的 `MAKEOS_HOME` 残留或脚本被改。
+
+**相关脚本**:
+
+- 一次性迁移 [`migrate-octosense-home.py`](#8-migrate-octosense-homepy):从老 `~/.octosense/` 拷到 `finance-brief/.octosense/`。
+- 注册前置 [`install-as-makepad-app.py`](#4-install-as-makepad-apppy):生成 `catalog/apps.json`。
+
+---
+
+## 8. `migrate-octosense-home.py`
+
+**用途:** 一次性迁移 shell 运行时数据。从 `~/.octosense/` 拷贝到 `finance-brief/.octosense/`(新位置),保留 approvals、weights、app metadata、theme settings。迁移后**用户手动**删除 `~/.octosense/`(脚本不替你删)。
+
+**前置依赖**:
+
+- Python 3.10+(。
+- 之前跑过 `run-on-octosense.py` 或手工 `mkdir -p finance-brief/.octosense`(否则 dst 不存在会失败)。
+- `OCTOSENSE_HOME` **不**被本脚本读取(源路径写死 `Path.home() / ".octosense"`,目标路径写死 `finance-brief/.octosense`)。
+
+**用法**:
+
+```sh
+python scripts/migrate-octosense-home.py            # 实际拷贝
+python scripts/migrate-octosense-home.py --dry-run  # 列文件,不拷
+```
+
+**参数**(来自 `--help`):
+
+- `--dry-run`(flag):只列出文件与大小,不实际 `shutil.copy2`。
+
+**行为**:
+
+1. source = `Path.home() / ".octosense"`,dst = `finance-brief/.octosense/`(由脚本位置反推)。
+2. source 不存在 → exit 0,stderr 提示 "source missing",**视为成功**(已经迁过了)。
+3. dst 已存在且非空 → exit 1,提示先 `rmdir /s /q .octosense`。
+4. 否则 `shutil.copy2(f, target)`,保留 mtime;创建子目录。
+
+**退出码**:
+
+- `0`:成功(包含 source 不存在的 "no-op")。
+- `1`:dst 已存在且非空。
+
+**示例**:
+
+```sh
+# 1. 干跑看一眼要拷什么
+python scripts/migrate-octosense-home.py --dry-run
+
+# 2. 实际拷
+python scripts/migrate-octosense-home.py
+
+# 3. 起 shell 验数据写到 finance-brief/.octosense/
+python scripts/run-on-octosense.py --no-wait
+ls finance-brief/.octosense/
+
+# 4. 用户手动删老目录(脚本不做)
+rmdir /s /q "%USERPROFILE%\.octosense"
+```
+
+**典型错误**:
+
+- `destination already populated`:dst 已有别的数据。备份后清空再跑。
+- `source missing`:已经迁过(老目录可能已删)。`--dry-run` 看 finance-brief/.octosense/ 内容。
+- 数据没迁过去:看 stdout `copied N files (B bytes)` 是否出现 N=0。是的话 source 真的空。
+
+**为什么有这个脚本:** `run-on-octosense.py` 用 `OCTOSENSE_HOME` 让所有运行时数据写到项目内,但用户已经存在 `~/.octosense/` 里的旧数据需要带过来。这个脚本是那一步的"初始迁移",跑一次就完事。
 
 ---
 
